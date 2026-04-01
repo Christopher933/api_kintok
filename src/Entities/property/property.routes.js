@@ -1,0 +1,11 @@
+const express = require("express");
+const router = express.Router();
+const controller = require("./property.controller");
+
+router.get("/featured", controller.listFeatured);
+router.get("/detail/:id", controller.getDetail);
+router.post("/visit", controller.visitIncrement);
+router.post("/search", controller.search);
+router.post("/upsert", controller.upsert);
+
+module.exports = router;

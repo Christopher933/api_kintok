@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tu orden está en proceso {{order_number}}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body{margin:0;padding:0;background-color:#fffcf2;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#121212;}
+    table{border-spacing:0;border-collapse:collapse;}
+    img{border:0;max-width:100%;}
+    .wrapper{width:100%;background-color:#fffcf2;padding:24px 0;}
+    .container{width:100%;max-width:640px;margin:0 auto;background-color:#ffffff;border-radius:16px;border:1px solid #E7E7E7;overflow:hidden;}
+    .header{background:#fecb3e;padding:16px 24px;color:#121212;}
+    .header-logo{display:block;max-height:40px;margin-bottom:10px;}
+    .header-title{margin:0;font-size:20px;font-weight:600;}
+    .header-subtitle{margin:4px 0 0;font-size:13px;}
+    .content{padding:20px 24px 24px;}
+    .paragraph{font-size:14px;color:#767676;margin:0 0 12px;line-height:1.45;}
+    .summary-card{margin-top:8px;margin-bottom:16px;padding:12px 14px;border-radius:12px;background-color:#fff9e8;border:1px solid #fff0c6;}
+    .summary-title{font-size:14px;font-weight:600;margin:0 0 8px;}
+    .summary-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;color:#3A3A3A;}
+    .summary-label{padding-right:8px;font-weight:600;}
+    .summary-value{text-align:right;padding-left:8px;}
+    .section-title{font-size:15px;font-weight:600;margin:18px 0 8px;color:#121212;}
+    .data-row{font-size:13px;margin-bottom:4px;}
+    .data-label{font-weight:500;color:#3A3A3A;}
+    .data-value{color:#121212;}
+
+    .badge-status{
+      display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;
+      background-color:#fffcf2;border:1px solid #fff0c6;color:#b28e2c;
+    }
+    .badge-status::before{
+      content:"";display:inline-block;width:7px;height:7px;border-radius:999px;background-color:#fecb3e;margin-right:6px;
+    }
+
+    .button-wrapper{margin:18px 0 8px;text-align:left;}
+    .btn-primary{
+      display:inline-block;padding:10px 18px;border-radius:999px;background-color:#fecb3e;color:#121212;text-decoration:none;font-size:13px;font-weight:600;border:1px solid #fecb3e;
+    }
+    .btn-primary:hover{background-color:#fed982;border-color:#fed982;}
+
+    .footer{padding:16px 24px 8px;font-size:11px;color:#9E9E9E;text-align:left;}
+
+    @media (max-width: 600px){
+      .container{border-radius:0;border-left:none;border-right:none;}
+      .header,.content,.footer{padding-left:16px;padding-right:16px;}
+      .summary-row{flex-direction:column;align-items:flex-start;}
+      .summary-value{text-align:left;}
+      .button-wrapper{text-align:center;}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <table role="presentation" class="container" align="center">
+      <tr>
+        <td>
+          <div class="header">
+            <img src="{{logo_url}}" alt="Logo del laboratorio" class="header-logo" />
+            <h1 class="header-title">Tu orden está en proceso</h1>
+            <p class="header-subtitle">Orden <strong>{{order_number}}</strong></p>
+          </div>
+
+          <div class="content">
+            <p class="paragraph">Hola {{customer_first_name}} {{customer_last_name}},</p>
+            <p class="paragraph">
+              Te avisamos que tu orden ya se encuentra <strong>en proceso</strong>.
+              Si necesitamos alguna confirmación adicional, te contactaremos.
+            </p>
+
+            <div class="summary-card">
+              <p class="summary-title">Resumen de tu orden</p>
+
+              <div class="summary-row">
+                <span class="summary-label">Número de orden</span>
+                <span class="summary-value">{{order_number}}</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Fecha de creación</span>
+                <span class="summary-value">{{created_at_formatted}}</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Entrega estimada</span>
+                <span class="summary-value">{{due_date_formatted}}</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Paciente</span>
+                <span class="summary-value">{{patient_name}} ({{patient_age}} años, {{patient_gender_label}})</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Total</span>
+                <span class="summary-value">{{total_formatted}}</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Estado</span>
+                <span class="summary-value"><span class="badge-status">{{status_name}}</span></span>
+              </div>
+            </div>
+
+            <h2 class="section-title">Tus datos de contacto</h2>
+            <p class="data-row"><span class="data-label">Correo:</span> <span class="data-value">{{customer_email}}</span></p>
+            <p class="data-row"><span class="data-label">Teléfono:</span> <span class="data-value">{{customer_phone}}</span></p>
+
+            <div class="button-wrapper">
+              <a href="{{order_detail_url}}" class="btn-primary" target="_blank" rel="noopener noreferrer">
+                Ver detalle de mi orden
+              </a>
+            </div>
+
+            {{notes_section}}
+
+            <p class="paragraph" style="margin-top:18px;">
+              Si detectas algún dato incorrecto o deseas hacer un ajuste, por favor contáctanos lo antes posible.
+            </p>
+          </div>
+
+          <div class="footer">
+            <p style="margin:0 0 4px;">Este correo es una notificación automática del estado de tu orden.</p>
+            <p style="margin:0;">Gracias por confiar en nosotros.</p>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

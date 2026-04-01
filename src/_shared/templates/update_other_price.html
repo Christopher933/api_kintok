@@ -1,0 +1,164 @@
+<!-- ../_shared/templates/update_other.price.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Actualización: Precio de “Otro”</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body{margin:0;padding:0;background:#fffcf2;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#121212}
+    table{border-spacing:0;border-collapse:collapse;width:100%}
+    img{border:0;max-width:100%}
+    .wrapper{width:100%;padding:24px 0;background:#fffcf2}
+    .container{width:100%;max-width:760px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #E7E7E7;overflow:hidden}
+    .header{background:#fecb3e;padding:16px 24px}
+    .logo{max-height:42px;display:block;margin:0 0 10px}
+    .header h1{margin:0;font-size:20px;font-weight:800}
+    .header p{margin:6px 0 0;font-size:13px;color:#3a3a3a}
+    .content{padding:20px 24px 24px}
+    .p{font-size:14px;line-height:1.45;margin:0 0 12px;color:#3A3A3A}
+    .muted{color:#767676}
+    .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;background:#fff9e8;border:1px solid #fff0c6;color:#b28e2c;text-transform:uppercase;letter-spacing:.04em}
+    .card{margin:14px 0 18px;padding:12px 14px;border-radius:12px;background:#fff9e8;border:1px solid #fff0c6}
+    .card-title{margin:0 0 10px;font-size:14px;font-weight:900}
+    .kv{display:flex;justify-content:space-between;gap:12px;font-size:13px;margin:6px 0}
+    .k{font-weight:800;color:#3A3A3A}
+    .v{text-align:right;color:#121212}
+    .section-title{margin:18px 0 10px;font-size:15px;font-weight:900}
+    .table{width:100%;border:1px solid #E7E7E7;border-radius:12px;overflow:hidden}
+    .thead th{background:#F6F6F6;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#6b6b6b;padding:10px;border-bottom:1px solid #E7E7E7;text-align:left}
+    .tbody td{font-size:13px;padding:10px;border-bottom:1px solid #EFEFEF;vertical-align:top;color:#121212}
+    .tbody tr:last-child td{border-bottom:none}
+    .right{text-align:right}
+    .totals{margin-top:12px;border-top:1px dashed #E7E7E7;padding-top:12px}
+    .total-strong{font-size:16px;font-weight:900}
+    .callout{margin-top:14px;padding:10px 12px;border-radius:12px;border:1px solid #E7E7E7;background:#F9F9F9;font-size:13px;color:#3A3A3A}
+    .btn{display:inline-block;padding:10px 18px;border-radius:999px;background:#fecb3e;color:#121212;text-decoration:none;font-size:13px;font-weight:900;border:1px solid #fecb3e}
+    .footer{padding:16px 24px 20px;font-size:11px;color:#9E9E9E}
+    @media (max-width:640px){
+      .content,.header,.footer{padding-left:16px;padding-right:16px}
+      .kv{flex-direction:column}
+      .v{text-align:left}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrapper">
+    <div class="container">
+
+      <!-- Header -->
+      <div class="header">
+        <img src="{{logo_url}}" class="logo" alt="Logo" />
+        <h1>Aviso: Precio actualizado para “Otro”</h1>
+        <p>Se actualizó el precio de “Otro” y se recalculó el total de tu orden.</p>
+      </div>
+
+      <!-- Content -->
+      <div class="content">
+        <p class="p">Hola <strong>{{customer_first_name}} {{customer_last_name}}</strong>,</p>
+
+        <p class="p muted">
+          Te informamos que se actualizó el precio del producto <strong>“Otro”</strong> (solicitud personalizada).
+          Con este cambio, el sistema recalculó automáticamente el total de tu orden.
+        </p>
+
+        <div class="callout">
+          <strong>¿Qué es “Otro”?</strong><br/>
+          Es una opción para trabajos personalizados. La descripción del trabajo se indica en <strong>Instrucciones Adicionales</strong>.
+        </div>
+
+        <!-- Summary -->
+        <div class="card">
+          <p class="card-title">Resumen</p>
+
+          <div class="kv">
+            <div class="k">Orden</div>
+            <div class="v">#{{order_number}} <span class="badge">{{status_name}}</span></div>
+          </div>
+
+          <div class="kv">
+            <div class="k">Creada</div>
+            <div class="v">{{created_at_formatted}}</div>
+          </div>
+
+          <div class="kv">
+            <div class="k">Fecha de entrega</div>
+            <div class="v">{{due_date_formatted}}</div>
+          </div>
+
+          <div class="kv">
+            <div class="k">Precio actualizado de “Otro”</div>
+            <div class="v"><strong>{{other_unit_price_formatted}}</strong></div>
+          </div>
+
+          <div class="kv">
+            <div class="k">Nuevo total</div>
+            <div class="v total-strong">{{grand_total_formatted}}</div>
+          </div>
+        </div>
+
+        <!-- Order Detail -->
+        <h2 class="section-title">Detalle actualizado de la orden</h2>
+
+        <div class="table">
+          <table role="presentation">
+            <thead class="thead">
+              <tr>
+                <th style="width:10%;">Diente</th>
+                <th style="width:26%;">Producto</th>
+                <th style="width:18%;">Inventario</th>
+                <th style="width:16%;">Técnica</th>
+                <th style="width:14%;">Color/Opacidad</th>
+                <th class="right" style="width:6%;">Cant.</th>
+                <th class="right" style="width:10%;">Precio</th>
+                <th class="right" style="width:10%;">Total</th>
+              </tr>
+            </thead>
+            <tbody class="tbody">
+              {{products_rows}}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Services (injected from Node, can be empty string) -->
+        {{services_section}}
+
+        <!-- Totals -->
+        <div class="totals">
+          <div class="kv">
+            <div class="k">Subtotal productos</div>
+            <div class="v">{{items_total_formatted}}</div>
+          </div>
+          <div class="kv">
+            <div class="k">Subtotal servicios</div>
+            <div class="v">{{services_total_formatted}}</div>
+          </div>
+          <div class="kv">
+            <div class="k">Total</div>
+            <div class="v total-strong">{{grand_total_formatted}}</div>
+          </div>
+        </div>
+
+        <!-- Notes (injected from Node, can be empty string) -->
+        {{notes_section}}
+
+        <div style="margin-top:18px;">
+          <a class="btn" href="{{order_detail_url}}" target="_blank" rel="noopener noreferrer">
+            Ver orden en el portal
+          </a>
+        </div>
+
+        <p class="p muted" style="margin-top:14px;">
+          Si tienes preguntas, responde a este correo y con gusto te ayudamos.
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        Este mensaje es un aviso automático. Gracias por confiar en nosotros.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
