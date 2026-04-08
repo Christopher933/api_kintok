@@ -1,35 +1,26 @@
-const processor = require("./lead.processor");
+const processor = require("./transaction.processor");
 
 exports.register = async (req, res) => {
     try {
         const data = await processor.register(req.body);
-        res.status(201).send(data);
-    } catch (error) {
-        res.status(500).send({ message: error.message });
-    }
-};
-
-exports.list = async (req, res) => {
-    try {
-        const data = await processor.list(req.query);
         res.status(200).send(data);
     } catch (error) {
         res.status(500).send({ message: error.message });
     }
 };
 
-exports.statusUpdate = async (req, res) => {
+exports.listByProperty = async (req, res) => {
     try {
-        const data = await processor.statusUpdate(req.body);
+        const data = await processor.listByProperty(req.params.property_id);
         res.status(200).send(data);
     } catch (error) {
         res.status(500).send({ message: error.message });
     }
 };
 
-exports.convertToCustomer = async (req, res) => {
+exports.listByCustomer = async (req, res) => {
     try {
-        const data = await processor.convertToCustomer(req.body);
+        const data = await processor.listByCustomer(req.params.customer_id);
         res.status(200).send(data);
     } catch (error) {
         res.status(500).send({ message: error.message });

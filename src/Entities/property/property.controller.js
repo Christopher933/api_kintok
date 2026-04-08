@@ -44,3 +44,39 @@ exports.upsert = async (req, res) => {
         res.status(500).send({ message: error.message });
     }
 };
+
+exports.uploadImages = async (req, res) => {
+    try {
+        const data = await processor.uploadImages(req);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+};
+
+exports.sortImages = async (req, res) => {
+    try {
+        const data = await processor.sortImages(req.body);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+};
+
+exports.deleteImage = async (req, res) => {
+    try {
+        const data = await processor.deleteImage(req.params.id);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+};
+
+exports.updateStatus = async (req, res) => {
+    try {
+        const data = await processor.updateStatus(req.body);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+};

@@ -15,7 +15,7 @@ exports.register = async (body) => {
 
 exports.list = async (query) => {
     const { status, page_number, page_size } = query;
-    const [result] = await pool.query("CALL lead_contact_list(?, ?, ?)", [
+    const [result] = await pool.query("CALL lead_contact_list_with_customer(?, ?, ?)", [
         status || null,
         parseInt(page_number) || 1,
         parseInt(page_size) || 10,
@@ -29,5 +29,15 @@ exports.list = async (query) => {
 exports.statusUpdate = async (body) => {
     const { lead_contact_id, status } = body;
     const [result] = await pool.query("CALL lead_contact_status_update(?, ?)", [lead_contact_id, status]);
+    return result[0][0];
+};
+
+exports.convertToCustomer = async (body) => {
+    const { lead_contact_id, customer_type, notes } = body;
+    const [result] = await pool.query("CALL lead_contact_convert_to_customer(?, ?, ?)", [
+        lead_contact_id,
+        customer_type || 'comprador',
+        notes || null,
+    ]);
     return result[0][0];
 };

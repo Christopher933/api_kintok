@@ -5,5 +5,6 @@ const controller = require("./lead.controller");
 router.post("/register", controller.register);
 router.get("/list", controller.list);
 router.put("/status", controller.statusUpdate);
+router.post("/convert", controller.convertToCustomer);
 
 module.exports = router;
