@@ -121,12 +121,30 @@ CREATE TABLE `customer` (
   `phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `customer_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `notes` text COLLATE utf8mb4_unicode_ci,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'activo',
+  `source` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `assigned_agent_id` int DEFAULT NULL,
+  `last_contact_at` datetime DEFAULT NULL,
+  `next_follow_up_at` datetime DEFAULT NULL,
+  `rfc` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `business_name` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `billing_email` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `address_line` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_customer_full_name` (`full_name`),
   KEY `idx_customer_email` (`email`),
-  KEY `idx_customer_phone` (`phone`)
+  KEY `idx_customer_phone` (`phone`),
+  KEY `fk_customer_assigned_agent` (`assigned_agent_id`),
+  KEY `fk_customer_created_by` (`created_by`),
+  KEY `fk_customer_updated_by` (`updated_by`),
+  CONSTRAINT `chk_customer_status` CHECK ((`status` in (_utf8mb4'activo',_utf8mb4'inactivo',_utf8mb4'bloqueado'))),
+  CONSTRAINT `fk_customer_assigned_agent` FOREIGN KEY (`assigned_agent_id`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_customer_created_by` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_customer_updated_by` FOREIGN KEY (`updated_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -136,7 +154,39 @@ CREATE TABLE `customer` (
 
 LOCK TABLES `customer` WRITE;
 /*!40000 ALTER TABLE `customer` DISABLE KEYS */;
+INSERT INTO `customer` VALUES (1,'Carlos Mendoza','carlos.mendoza@gmail.com','6641234567','comprador','Cliente de prueba','activo','lead_web',2,'2026-04-07 18:00:00','2026-04-12 10:00:00','MEMC900101ABC',NULL,'carlos.mendoza@gmail.com','Tijuana, Baja California',2,2,'2026-04-07 22:52:58','2026-04-07 22:52:58');
 /*!40000 ALTER TABLE `customer` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `customer_note`
+--
+
+DROP TABLE IF EXISTS `customer_note`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `customer_note` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `customer_id` int NOT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_by` int DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_customer_note_customer_created` (`customer_id`,`created_at`),
+  KEY `fk_customer_note_created_by` (`created_by`),
+  CONSTRAINT `fk_customer_note_created_by` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_customer_note_customer` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `customer_note`
+--
+
+LOCK TABLES `customer_note` WRITE;
+/*!40000 ALTER TABLE `customer_note` DISABLE KEYS */;
+INSERT INTO `customer_note` VALUES (1,1,'Primer contacto inicial del cliente',2,'2026-04-07 23:10:00');
+/*!40000 ALTER TABLE `customer_note` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -183,15 +233,25 @@ CREATE TABLE `lead_contact` (
   `email` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
   `phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `comments` text COLLATE utf8mb4_unicode_ci,
-  `status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'new',
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'nuevo',
+  `changed_by` int DEFAULT NULL,
+  `converted_by` int DEFAULT NULL,
+  `converted_at` datetime DEFAULT NULL,
+  `conversion_notes` text COLLATE utf8mb4_unicode_ci,
+  `lead_notes` text COLLATE utf8mb4_unicode_ci,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `customer_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_lead_contact_status_created` (`status`,`created_at`),
   KEY `idx_lead_contact_property` (`property_id`),
+  KEY `fk_lead_contact_changed_by` (`changed_by`),
+  KEY `fk_lead_contact_converted_by` (`converted_by`),
   KEY `fk_lead_contact_customer` (`customer_id`),
+  CONSTRAINT `chk_lead_contact_status` CHECK ((`status` in (_utf8mb4'nuevo',_utf8mb4'contactado',_utf8mb4'calificado',_utf8mb4'cerrado'))),
+  CONSTRAINT `fk_lead_contact_changed_by` FOREIGN KEY (`changed_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_lead_contact_customer` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_lead_contact_converted_by` FOREIGN KEY (`converted_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_lead_contact_property` FOREIGN KEY (`property_id`) REFERENCES `property` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -202,8 +262,39 @@ CREATE TABLE `lead_contact` (
 
 LOCK TABLES `lead_contact` WRITE;
 /*!40000 ALTER TABLE `lead_contact` DISABLE KEYS */;
-INSERT INTO `lead_contact` VALUES (1,1,'Christopher Sandoval','christopher.sandoval93@gmail.com','6640000000','Quiero información sobre esta propiedad','nuevo','2026-04-02 16:12:53','2026-04-02 16:12:53',NULL);
+INSERT INTO `lead_contact` VALUES (1,1,'Christopher Sandoval','christopher.sandoval93@gmail.com','6640000000','Quiero información sobre esta propiedad','nuevo',NULL,NULL,NULL,NULL,NULL,'2026-04-02 16:12:53','2026-04-02 16:12:53',NULL);
 /*!40000 ALTER TABLE `lead_contact` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `lead_contact_note`
+--
+
+DROP TABLE IF EXISTS `lead_contact_note`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `lead_contact_note` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `lead_contact_id` int NOT NULL,
+  `note` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_by` int DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_lead_contact_note_lead_created` (`lead_contact_id`,`created_at`),
+  KEY `fk_lead_contact_note_created_by` (`created_by`),
+  CONSTRAINT `fk_lead_contact_note_created_by` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_lead_contact_note_lead` FOREIGN KEY (`lead_contact_id`) REFERENCES `lead_contact` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `lead_contact_note`
+--
+
+LOCK TABLES `lead_contact_note` WRITE;
+/*!40000 ALTER TABLE `lead_contact_note` DISABLE KEYS */;
+INSERT INTO `lead_contact_note` VALUES (1,1,'Primer seguimiento: solicitó información de precio.',NULL,'2026-04-02 17:00:00');
+/*!40000 ALTER TABLE `lead_contact_note` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -229,6 +320,43 @@ LOCK TABLES `operation` WRITE;
 /*!40000 ALTER TABLE `operation` DISABLE KEYS */;
 INSERT INTO `operation` VALUES (4,'Renta'),(3,'Venta');
 /*!40000 ALTER TABLE `operation` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `permission_module`
+--
+
+DROP TABLE IF EXISTS `permission_module`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `permission_module` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `module_key` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `display_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_permission_module_key` (`module_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `permission_module`
+--
+
+LOCK TABLES `permission_module` WRITE;
+/*!40000 ALTER TABLE `permission_module` DISABLE KEYS */;
+INSERT INTO `permission_module` VALUES
+(1,'auth','Autenticación','2026-04-09 09:00:00','2026-04-09 09:00:00'),
+(2,'user','Usuarios','2026-04-09 09:00:00','2026-04-09 09:00:00'),
+(3,'role_permission','Roles y Permisos','2026-04-09 09:00:00','2026-04-09 09:00:00'),
+(4,'property','Propiedades','2026-04-09 09:00:00','2026-04-09 09:00:00'),
+(5,'lead','Leads','2026-04-09 09:00:00','2026-04-09 09:00:00'),
+(6,'customer','Clientes','2026-04-09 09:00:00','2026-04-09 09:00:00'),
+(7,'transaction','Transacciones','2026-04-09 09:00:00','2026-04-09 09:00:00'),
+(8,'catalog','Catálogos','2026-04-09 09:00:00','2026-04-09 09:00:00'),
+(9,'cms','Contenido CMS','2026-04-09 09:00:00','2026-04-09 09:00:00');
+/*!40000 ALTER TABLE `permission_module` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -285,7 +413,7 @@ CREATE TABLE `property` (
 
 LOCK TABLES `property` WRITE;
 /*!40000 ALTER TABLE `property` DISABLE KEYS */;
-INSERT INTO `property` VALUES (1,11,4,1,1,NULL,NULL,NULL,'test para casa','test desc',200.00,2000.00,'MXN',0,0,'2026-04-02 14:04:46','2026-04-02 14:33:04',1,1),(2,11,4,1,1,NULL,NULL,NULL,'test para casa','este es un test',200.00,2000.00,'MXN',0,0,'2026-04-02 14:08:17','2026-04-02 14:33:04',1,1),(3,11,4,1,1,NULL,NULL,NULL,'este es una casa','test para casa',200.00,2000.00,'USD',0,0,'2026-04-02 14:11:08','2026-04-02 17:42:20',1,1),(4,11,4,1,1,NULL,NULL,NULL,'casa de test','este es un test',200.00,2000.00,'MXN',0,0,'2026-04-02 17:22:13','2026-04-02 17:22:13',1,1),(5,11,3,1,1,NULL,NULL,NULL,'test 4','este es un test',200.00,3000.00,'MXN',0,0,'2026-04-03 22:03:31','2026-04-03 22:03:31',1,1),(6,11,3,1,1,NULL,NULL,NULL,'test 4','este es un test',200.00,3000.00,'MXN',0,0,'2026-04-03 22:03:53','2026-04-03 22:03:53',1,1),(7,11,3,1,1,'Avenida de los Olivos 3401, 22045 Tijuana, Baja California, Mexico',32.51196057,-117.01500313,'test 4','este es un test',200.00,3000.00,'MXN',30,0,'2026-04-03 22:09:08','2026-04-03 22:44:40',1,1);
+INSERT INTO `property` VALUES (1,11,4,1,1,NULL,NULL,NULL,'test para casa','test desc',200.00,2000.00,'MXN',0,0,'2026-04-02 14:04:46','2026-04-02 14:33:04',1,1),(2,11,4,1,1,NULL,NULL,NULL,'test para casa','este es un test',200.00,2000.00,'MXN',0,0,'2026-04-02 14:08:17','2026-04-02 14:33:04',1,1),(3,11,4,1,1,NULL,NULL,NULL,'este es una casa','test para casa',200.00,2000.00,'USD',0,0,'2026-04-02 14:11:08','2026-04-02 17:42:20',1,1),(4,11,4,1,1,NULL,NULL,NULL,'casa de test','este es un test',200.00,2000.00,'MXN',0,0,'2026-04-02 17:22:13','2026-04-02 17:22:13',1,1),(5,11,3,1,1,NULL,NULL,NULL,'test 4','este es un test',200.00,3000.00,'MXN',0,0,'2026-04-03 22:03:31','2026-04-03 22:03:31',1,1),(6,11,3,1,1,NULL,NULL,NULL,'test 4','este es un test',200.00,3000.00,'MXN',0,0,'2026-04-03 22:03:53','2026-04-03 22:03:53',1,1),(7,11,3,1,1,'Avenida de los Olivos 3401, 22045 Tijuana, Baja California, Mexico',32.51196057,-117.01500313,'test 4','este es un test',200.00,3000.00,'MXN',30,0,'2026-04-03 22:09:08','2026-04-03 22:44:40',2,4);
 /*!40000 ALTER TABLE `property` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -555,22 +683,29 @@ CREATE TABLE `property_transaction` (
   `property_id` int NOT NULL,
   `customer_id` int NOT NULL,
   `transaction_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'activa',
   `final_price` decimal(14,2) DEFAULT NULL,
   `currency` char(3) COLLATE utf8mb4_unicode_ci NOT NULL,
   `transaction_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `notes` text COLLATE utf8mb4_unicode_ci,
   `created_by` int DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `cancelled_at` datetime DEFAULT NULL,
+  `cancelled_by` int DEFAULT NULL,
+  `cancel_reason` text COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`id`),
   KEY `fk_property_transaction_user` (`created_by`),
+  KEY `fk_property_transaction_cancelled_by_user` (`cancelled_by`),
   KEY `idx_property_transaction_property` (`property_id`),
   KEY `idx_property_transaction_customer` (`customer_id`),
-  KEY `idx_property_transaction_type` (`transaction_type`),
+  KEY `idx_property_transaction_type` (`transaction_type`,`status`),
   KEY `idx_property_transaction_date` (`transaction_date`),
   CONSTRAINT `fk_property_transaction_customer` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_property_transaction_property` FOREIGN KEY (`property_id`) REFERENCES `property` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_property_transaction_cancelled_by_user` FOREIGN KEY (`cancelled_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_property_transaction_user` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `chk_property_transaction_currency` CHECK ((`currency` in (_utf8mb4'USD',_utf8mb4'MXN'))),
+  CONSTRAINT `chk_property_transaction_status` CHECK ((`status` in (_utf8mb4'activa',_utf8mb4'cancelada',_utf8mb4'cerrada'))),
   CONSTRAINT `chk_property_transaction_type` CHECK ((`transaction_type` in (_utf8mb4'apartado',_utf8mb4'venta',_utf8mb4'renta')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -581,6 +716,9 @@ CREATE TABLE `property_transaction` (
 
 LOCK TABLES `property_transaction` WRITE;
 /*!40000 ALTER TABLE `property_transaction` DISABLE KEYS */;
+INSERT INTO `property_transaction` VALUES
+(1,7,1,'apartado','cancelada',3000.00,'MXN','2026-04-04 10:00:00','Apartado de prueba',2,'2026-04-04 10:00:00','2026-04-05 09:45:00',2,'El cliente decidió no continuar'),
+(2,7,1,'renta','activa',2000.00,'MXN','2026-04-06 11:30:00','Renta vigente de prueba',2,'2026-04-06 11:30:00',NULL,NULL,NULL);
 /*!40000 ALTER TABLE `property_transaction` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -661,6 +799,68 @@ LOCK TABLES `role` WRITE;
 /*!40000 ALTER TABLE `role` DISABLE KEYS */;
 INSERT INTO `role` VALUES (2,'admin'),(4,'marketing'),(3,'sales_agent'),(1,'super_admin'),(5,'viewer');
 /*!40000 ALTER TABLE `role` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `role_module_permission`
+--
+
+DROP TABLE IF EXISTS `role_module_permission`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `role_module_permission` (
+  `role_id` int NOT NULL,
+  `module_id` int NOT NULL,
+  `can_view` tinyint(1) NOT NULL DEFAULT '0',
+  `can_create` tinyint(1) NOT NULL DEFAULT '0',
+  `can_update` tinyint(1) NOT NULL DEFAULT '0',
+  `can_delete` tinyint(1) NOT NULL DEFAULT '0',
+  `updated_by` int DEFAULT NULL,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`role_id`,`module_id`),
+  KEY `fk_role_module_permission_module` (`module_id`),
+  KEY `fk_role_module_permission_updated_by` (`updated_by`),
+  CONSTRAINT `fk_role_module_permission_module` FOREIGN KEY (`module_id`) REFERENCES `permission_module` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_role_module_permission_role` FOREIGN KEY (`role_id`) REFERENCES `role` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_role_module_permission_updated_by` FOREIGN KEY (`updated_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `role_module_permission`
+--
+
+LOCK TABLES `role_module_permission` WRITE;
+/*!40000 ALTER TABLE `role_module_permission` DISABLE KEYS */;
+INSERT INTO `role_module_permission` VALUES
+(1,1,1,1,1,1,1,'2026-04-09 09:05:00'),
+(1,2,1,1,1,1,1,'2026-04-09 09:05:00'),
+(1,3,1,1,1,1,1,'2026-04-09 09:05:00'),
+(1,4,1,1,1,1,1,'2026-04-09 09:05:00'),
+(1,5,1,1,1,1,1,'2026-04-09 09:05:00'),
+(1,6,1,1,1,1,1,'2026-04-09 09:05:00'),
+(1,7,1,1,1,1,1,'2026-04-09 09:05:00'),
+(1,8,1,1,1,1,1,'2026-04-09 09:05:00'),
+(1,9,1,1,1,1,1,'2026-04-09 09:05:00'),
+(2,1,1,1,1,0,1,'2026-04-09 09:05:00'),
+(2,2,1,1,1,0,1,'2026-04-09 09:05:00'),
+(2,3,1,0,1,0,1,'2026-04-09 09:05:00'),
+(2,4,1,1,1,1,1,'2026-04-09 09:05:00'),
+(2,5,1,1,1,1,1,'2026-04-09 09:05:00'),
+(2,6,1,1,1,1,1,'2026-04-09 09:05:00'),
+(2,7,1,1,1,1,1,'2026-04-09 09:05:00'),
+(2,8,1,1,1,0,1,'2026-04-09 09:05:00'),
+(2,9,1,1,1,0,1,'2026-04-09 09:05:00'),
+(3,1,1,0,1,0,1,'2026-04-09 09:05:00'),
+(3,2,0,0,0,0,1,'2026-04-09 09:05:00'),
+(3,3,0,0,0,0,1,'2026-04-09 09:05:00'),
+(3,4,1,1,1,0,1,'2026-04-09 09:05:00'),
+(3,5,1,1,1,0,1,'2026-04-09 09:05:00'),
+(3,6,1,1,1,0,1,'2026-04-09 09:05:00'),
+(3,7,1,1,1,0,1,'2026-04-09 09:05:00'),
+(3,8,1,0,0,0,1,'2026-04-09 09:05:00'),
+(3,9,1,0,0,0,1,'2026-04-09 09:05:00');
+/*!40000 ALTER TABLE `role_module_permission` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -809,6 +1009,216 @@ INSERT INTO `zone` VALUES (1,1,'Otay');
 UNLOCK TABLES;
 
 --
+-- Table structure for table `document_type`
+--
+
+DROP TABLE IF EXISTS `document_type`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `document_type` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `applicable_to` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'todos',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_document_type_name` (`name`),
+  CONSTRAINT `chk_document_type_applicable` CHECK ((`applicable_to` in (_utf8mb4'apartado',_utf8mb4'venta',_utf8mb4'renta',_utf8mb4'todos')))
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `document_type`
+--
+
+LOCK TABLES `document_type` WRITE;
+/*!40000 ALTER TABLE `document_type` DISABLE KEYS */;
+INSERT INTO `document_type` VALUES (1,'Identificación oficial','todos'),(2,'Comprobante de domicilio','todos'),(3,'Carta de intención','apartado'),(4,'Contrato de compraventa','venta'),(5,'Contrato de arrendamiento','renta'),(6,'Aval','renta'),(7,'Estado de cuenta','todos'),(8,'Escritura','venta');
+/*!40000 ALTER TABLE `document_type` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `transaction_document`
+--
+
+DROP TABLE IF EXISTS `transaction_document`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `transaction_document` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `transaction_id` int NOT NULL,
+  `document_type_id` int NOT NULL,
+  `file_url` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `file_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` text COLLATE utf8mb4_unicode_ci,
+  `uploaded_by` int DEFAULT NULL,
+  `uploaded_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_transaction_document_transaction` (`transaction_id`),
+  KEY `fk_transaction_document_type` (`document_type_id`),
+  KEY `fk_transaction_document_user` (`uploaded_by`),
+  CONSTRAINT `fk_transaction_document_transaction` FOREIGN KEY (`transaction_id`) REFERENCES `property_transaction` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_transaction_document_type` FOREIGN KEY (`document_type_id`) REFERENCES `document_type` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_transaction_document_user` FOREIGN KEY (`uploaded_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `transaction_document`
+--
+
+LOCK TABLES `transaction_document` WRITE;
+/*!40000 ALTER TABLE `transaction_document` DISABLE KEYS */;
+/*!40000 ALTER TABLE `transaction_document` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `transaction_reservation`
+--
+
+DROP TABLE IF EXISTS `transaction_reservation`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `transaction_reservation` (
+  `transaction_id` int NOT NULL,
+  `deposit_amount` decimal(14,2) DEFAULT NULL,
+  `deposit_currency` char(3) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'MXN',
+  `expires_at` datetime DEFAULT NULL,
+  `applied_to_sale` tinyint(1) NOT NULL DEFAULT '0',
+  `cancellation_policy` text COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`transaction_id`),
+  CONSTRAINT `fk_transaction_reservation_transaction` FOREIGN KEY (`transaction_id`) REFERENCES `property_transaction` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `chk_transaction_reservation_currency` CHECK ((`deposit_currency` in (_utf8mb4'USD',_utf8mb4'MXN')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `transaction_reservation`
+--
+
+LOCK TABLES `transaction_reservation` WRITE;
+/*!40000 ALTER TABLE `transaction_reservation` DISABLE KEYS */;
+INSERT INTO `transaction_reservation` VALUES (1,3000.00,'MXN','2026-04-20 00:00:00',1,'Si el cliente cancela, el apartado no es reembolsable');
+/*!40000 ALTER TABLE `transaction_reservation` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `transaction_rental`
+--
+
+DROP TABLE IF EXISTS `transaction_rental`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `transaction_rental` (
+  `transaction_id` int NOT NULL,
+  `start_date` date NOT NULL,
+  `end_date` date DEFAULT NULL,
+  `monthly_rent` decimal(14,2) NOT NULL,
+  `deposit_amount` decimal(14,2) DEFAULT NULL,
+  `deposit_currency` char(3) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'MXN',
+  `payment_day` tinyint NOT NULL DEFAULT '1',
+  `auto_renew` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`transaction_id`),
+  CONSTRAINT `fk_transaction_rental_transaction` FOREIGN KEY (`transaction_id`) REFERENCES `property_transaction` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `chk_transaction_rental_currency` CHECK ((`deposit_currency` in (_utf8mb4'USD',_utf8mb4'MXN'))),
+  CONSTRAINT `chk_transaction_rental_payment_day` CHECK ((`payment_day` between 1 and 28))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `transaction_rental`
+--
+
+LOCK TABLES `transaction_rental` WRITE;
+/*!40000 ALTER TABLE `transaction_rental` DISABLE KEYS */;
+INSERT INTO `transaction_rental` VALUES (2,'2026-04-01','2027-03-31',2000.00,2000.00,'MXN',5,0);
+/*!40000 ALTER TABLE `transaction_rental` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `rent_payment`
+--
+
+DROP TABLE IF EXISTS `rent_payment`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `rent_payment` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `transaction_id` int NOT NULL,
+  `period_year` smallint NOT NULL,
+  `period_month` tinyint NOT NULL,
+  `due_date` date NOT NULL,
+  `amount_due` decimal(14,2) NOT NULL,
+  `currency` char(3) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `amount_paid` decimal(14,2) NOT NULL DEFAULT '0.00',
+  `paid_at` datetime DEFAULT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pendiente',
+  `late_fee` decimal(14,2) DEFAULT NULL,
+  `notes` text COLLATE utf8mb4_unicode_ci,
+  `recorded_by` int DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_rent_payment_period` (`transaction_id`,`period_year`,`period_month`),
+  KEY `idx_rent_payment_status_due` (`status`,`due_date`),
+  KEY `fk_rent_payment_user` (`recorded_by`),
+  CONSTRAINT `fk_rent_payment_transaction` FOREIGN KEY (`transaction_id`) REFERENCES `property_transaction` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_rent_payment_user` FOREIGN KEY (`recorded_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `chk_rent_payment_currency` CHECK ((`currency` in (_utf8mb4'USD',_utf8mb4'MXN'))),
+  CONSTRAINT `chk_rent_payment_status` CHECK ((`status` in (_utf8mb4'pendiente',_utf8mb4'pagado',_utf8mb4'parcial',_utf8mb4'atrasado',_utf8mb4'cancelado'))),
+  CONSTRAINT `chk_rent_payment_month` CHECK ((`period_month` between 1 and 12))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `rent_payment`
+--
+
+LOCK TABLES `rent_payment` WRITE;
+/*!40000 ALTER TABLE `rent_payment` DISABLE KEYS */;
+INSERT INTO `rent_payment` VALUES
+(1,2,2026,4,'2026-04-05',2000.00,'MXN',2000.00,'2026-04-05 12:00:00','pagado',NULL,'Pago completo de abril',2,'2026-04-06 11:35:00','2026-04-06 11:35:00'),
+(2,2,2026,5,'2026-05-05',2000.00,'MXN',0.00,NULL,'pendiente',NULL,'Pago pendiente de mayo',NULL,'2026-04-06 11:35:00','2026-04-06 11:35:00'),
+(3,2,2026,6,'2026-06-05',2000.00,'MXN',500.00,'2026-06-06 18:00:00','parcial',100.00,'Pago parcial de junio',2,'2026-04-06 11:35:00','2026-06-06 18:00:00'),
+(4,2,2026,3,'2026-03-05',2000.00,'MXN',0.00,NULL,'atrasado',150.00,'Renta vencida de marzo',NULL,'2026-04-06 11:35:00','2026-04-06 11:35:00');
+/*!40000 ALTER TABLE `rent_payment` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `rent_payment_partiality`
+--
+
+DROP TABLE IF EXISTS `rent_payment_partiality`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `rent_payment_partiality` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `payment_id` int NOT NULL,
+  `amount` decimal(14,2) NOT NULL,
+  `paid_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `notes` text COLLATE utf8mb4_unicode_ci,
+  `recorded_by` int DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_rent_payment_partiality_payment` (`payment_id`),
+  KEY `fk_rent_payment_partiality_user` (`recorded_by`),
+  CONSTRAINT `fk_rent_payment_partiality_payment` FOREIGN KEY (`payment_id`) REFERENCES `rent_payment` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_rent_payment_partiality_user` FOREIGN KEY (`recorded_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `chk_rent_payment_partiality_amount` CHECK ((`amount` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `rent_payment_partiality`
+--
+
+LOCK TABLES `rent_payment_partiality` WRITE;
+/*!40000 ALTER TABLE `rent_payment_partiality` DISABLE KEYS */;
+INSERT INTO `rent_payment_partiality` VALUES
+(1,3,300.00,'2026-06-03 12:20:00','Primer abono junio',2,'2026-06-03 12:20:00'),
+(2,3,200.00,'2026-06-06 18:00:00','Segundo abono junio',2,'2026-06-06 18:00:00');
+/*!40000 ALTER TABLE `rent_payment_partiality` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Dumping routines for database 'kintok'
 --
 /*!50003 DROP FUNCTION IF EXISTS `fn_convert_to_base` */;
@@ -863,6 +1273,140 @@ BEGIN
     END IF;
 
     RETURN NULL;
+END ;;
+DELIMITER ;
+/*!50003 DROP PROCEDURE IF EXISTS `property_transaction_close` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `property_transaction_close`(
+    IN p_transaction_id INT,
+    IN p_close_reason TEXT,
+    IN p_closed_by INT
+)
+BEGIN
+    DECLARE v_property_id INT;
+    DECLARE v_transaction_type VARCHAR(20);
+    DECLARE v_current_status VARCHAR(20);
+    DECLARE v_business_status_id INT;
+    DECLARE v_publication_status_id INT;
+    DECLARE v_reason TEXT;
+    DECLARE v_open_balances INT DEFAULT 0;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    SELECT
+        pt.property_id,
+        pt.transaction_type,
+        pt.status
+      INTO v_property_id, v_transaction_type, v_current_status
+      FROM property_transaction pt
+     WHERE pt.id = p_transaction_id
+     LIMIT 1;
+
+    IF v_property_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Transacción no encontrada';
+    END IF;
+
+    IF v_current_status = 'cerrada' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'La transacción ya está cerrada';
+    END IF;
+
+    IF v_current_status = 'cancelada' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se puede cerrar una transacción cancelada';
+    END IF;
+
+    IF v_transaction_type = 'venta' THEN
+        SELECT id INTO v_business_status_id
+          FROM property_business_status
+         WHERE name = 'vendido'
+         LIMIT 1;
+
+        SELECT id INTO v_publication_status_id
+          FROM property_publication_status
+         WHERE name = 'inactivo'
+         LIMIT 1;
+    ELSE
+        SELECT id INTO v_business_status_id
+          FROM property_business_status
+         WHERE name = 'disponible'
+         LIMIT 1;
+
+        SELECT id INTO v_publication_status_id
+          FROM property_publication_status
+         WHERE name = 'activo'
+         LIMIT 1;
+    END IF;
+
+    IF v_business_status_id IS NULL OR v_publication_status_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se encontraron los catálogos de estado de propiedad requeridos';
+    END IF;
+
+    IF v_transaction_type = 'renta' THEN
+        SELECT COUNT(*)
+          INTO v_open_balances
+          FROM rent_payment rp
+         WHERE rp.transaction_id = p_transaction_id
+           AND (rp.amount_due - rp.amount_paid + IFNULL(rp.late_fee, 0)) > 0;
+
+        IF v_open_balances > 0 THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'No se puede cerrar la renta con adeudos pendientes';
+        END IF;
+    END IF;
+
+    SET v_reason = COALESCE(NULLIF(TRIM(p_close_reason), ''), 'Cierre de transacción');
+
+    START TRANSACTION;
+
+    UPDATE property_transaction
+       SET status = 'cerrada',
+           notes = CASE
+                     WHEN notes IS NULL OR notes = '' THEN CONCAT(v_reason, ' (cerrada)')
+                     ELSE CONCAT(notes, ' | ', v_reason, ' (cerrada)')
+                   END
+     WHERE id = p_transaction_id;
+
+    UPDATE property
+       SET business_status_id = v_business_status_id,
+           publication_status_id = v_publication_status_id
+     WHERE id = v_property_id;
+
+    INSERT INTO property_status_history (
+        property_id,
+        publication_status_id,
+        business_status_id,
+        changed_by,
+        change_notes
+    ) VALUES (
+        v_property_id,
+        v_publication_status_id,
+        v_business_status_id,
+        p_closed_by,
+        CONCAT('Cierre de transacción #', p_transaction_id, ': ', v_reason)
+    );
+
+    COMMIT;
+
+    SELECT
+        p_transaction_id AS property_transaction_id,
+        'cerrada' AS status,
+        v_transaction_type AS transaction_type,
+        v_property_id AS property_id;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1037,6 +1581,9 @@ DELIMITER ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `customer_list`(
     IN p_search_text VARCHAR(150),
+    IN p_status VARCHAR(20),
+    IN p_customer_type VARCHAR(50),
+    IN p_assigned_agent_id INT,
     IN p_page_number INT,
     IN p_page_size INT
 )
@@ -1045,7 +1592,6 @@ BEGIN
     DECLARE v_total_records INT DEFAULT 0;
     DECLARE v_total_pages INT DEFAULT 0;
 
-    -- Validaciones
     IF p_page_number IS NULL OR p_page_number < 1 THEN
         SET p_page_number = 1;
     END IF;
@@ -1054,9 +1600,13 @@ BEGIN
         SET p_page_size = 10;
     END IF;
 
+    IF p_status IS NOT NULL AND p_status <> '' AND p_status NOT IN ('activo','inactivo','bloqueado') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'status inválido. Usa: activo, inactivo, bloqueado';
+    END IF;
+
     SET v_offset = (p_page_number - 1) * p_page_size;
 
-    -- TOTAL
     SELECT COUNT(*)
       INTO v_total_records
     FROM customer c
@@ -1066,28 +1616,91 @@ BEGIN
         OR c.full_name LIKE CONCAT('%', p_search_text, '%')
         OR c.email LIKE CONCAT('%', p_search_text, '%')
         OR c.phone LIKE CONCAT('%', p_search_text, '%')
-    );
+    )
+      AND (p_status IS NULL OR p_status = '' OR c.status = p_status)
+      AND (p_customer_type IS NULL OR p_customer_type = '' OR c.customer_type = p_customer_type)
+      AND (p_assigned_agent_id IS NULL OR c.assigned_agent_id = p_assigned_agent_id);
 
     SET v_total_pages = CEIL(v_total_records / p_page_size);
 
-    -- METADATA
     SELECT
         v_total_records AS total_records,
         p_page_number AS page_number,
         p_page_size AS page_size,
         v_total_pages AS total_pages;
 
-    -- DATA
     SELECT
         c.id,
         c.full_name,
         c.email,
         c.phone,
         c.customer_type,
+        c.status,
+        c.source,
+        c.assigned_agent_id,
+        ua.full_name AS assigned_agent_name,
+        c.last_contact_at,
+        c.next_follow_up_at,
         c.notes,
+        (
+            SELECT COUNT(*)
+            FROM customer_note cn
+            WHERE cn.customer_id = c.id
+        ) AS notes_count,
+        (
+            SELECT cn.note
+            FROM customer_note cn
+            WHERE cn.customer_id = c.id
+            ORDER BY cn.created_at DESC, cn.id DESC
+            LIMIT 1
+        ) AS last_note,
+        (
+            SELECT cn.created_at
+            FROM customer_note cn
+            WHERE cn.customer_id = c.id
+            ORDER BY cn.created_at DESC, cn.id DESC
+            LIMIT 1
+        ) AS last_note_at,
+        (
+            SELECT COUNT(*)
+            FROM lead_contact lc
+            WHERE lc.customer_id = c.id
+              AND lc.status <> 'cerrado'
+        ) AS open_leads_count,
+        (
+            SELECT COUNT(*)
+            FROM property_transaction pt
+            WHERE pt.customer_id = c.id
+              AND pt.status = 'activa'
+        ) AS active_transactions_count,
+        (
+            SELECT COUNT(*)
+            FROM property_transaction pt
+            WHERE pt.customer_id = c.id
+        ) AS total_transactions_count,
+        (
+            SELECT COALESCE(SUM(fn_convert_to_base(COALESCE(pt.final_price, 0), pt.currency, 'MXN')), 0)
+            FROM property_transaction pt
+            WHERE pt.customer_id = c.id
+        ) AS total_spent_or_rented_mxn,
+        (
+            SELECT COUNT(*)
+            FROM rent_payment rp
+            INNER JOIN property_transaction pt ON pt.id = rp.transaction_id
+            WHERE pt.customer_id = c.id
+              AND rp.status = 'atrasado'
+        ) AS overdue_payments_count,
+        (
+            SELECT MIN(rp.due_date)
+            FROM rent_payment rp
+            INNER JOIN property_transaction pt ON pt.id = rp.transaction_id
+            WHERE pt.customer_id = c.id
+              AND rp.status IN ('pendiente','parcial','atrasado')
+        ) AS next_due_date,
         c.created_at,
         c.updated_at
     FROM customer c
+    LEFT JOIN `user` ua ON ua.id = c.assigned_agent_id
     WHERE (
         p_search_text IS NULL
         OR p_search_text = ''
@@ -1095,9 +1708,317 @@ BEGIN
         OR c.email LIKE CONCAT('%', p_search_text, '%')
         OR c.phone LIKE CONCAT('%', p_search_text, '%')
     )
+      AND (p_status IS NULL OR p_status = '' OR c.status = p_status)
+      AND (p_customer_type IS NULL OR p_customer_type = '' OR c.customer_type = p_customer_type)
+      AND (p_assigned_agent_id IS NULL OR c.assigned_agent_id = p_assigned_agent_id)
     ORDER BY c.created_at DESC, c.id DESC
     LIMIT p_page_size OFFSET v_offset;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `customer_detail` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `customer_detail`(
+    IN p_customer_id INT
+)
+BEGIN
+    DECLARE v_exists INT;
 
+    SELECT id INTO v_exists
+    FROM customer
+    WHERE id = p_customer_id
+    LIMIT 1;
+
+    IF v_exists IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Cliente no encontrado';
+    END IF;
+
+    SELECT
+        c.id,
+        c.full_name,
+        c.email,
+        c.phone,
+        c.customer_type,
+        c.status,
+        c.source,
+        c.assigned_agent_id,
+        ua.full_name AS assigned_agent_name,
+        c.last_contact_at,
+        c.next_follow_up_at,
+        c.rfc,
+        c.business_name,
+        c.billing_email,
+        c.address_line,
+        c.notes,
+        (
+            SELECT COUNT(*)
+            FROM customer_note cn
+            WHERE cn.customer_id = c.id
+        ) AS notes_count,
+        (
+            SELECT cn.note
+            FROM customer_note cn
+            WHERE cn.customer_id = c.id
+            ORDER BY cn.created_at DESC, cn.id DESC
+            LIMIT 1
+        ) AS last_note,
+        (
+            SELECT cn.created_at
+            FROM customer_note cn
+            WHERE cn.customer_id = c.id
+            ORDER BY cn.created_at DESC, cn.id DESC
+            LIMIT 1
+        ) AS last_note_at,
+        c.created_by,
+        ucb.full_name AS created_by_name,
+        c.updated_by,
+        uub.full_name AS updated_by_name,
+        (
+            SELECT COUNT(*)
+            FROM lead_contact lc
+            WHERE lc.customer_id = c.id
+              AND lc.status <> 'cerrado'
+        ) AS open_leads_count,
+        (
+            SELECT COUNT(*)
+            FROM property_transaction pt
+            WHERE pt.customer_id = c.id
+              AND pt.status = 'activa'
+        ) AS active_transactions_count,
+        (
+            SELECT COUNT(*)
+            FROM property_transaction pt
+            WHERE pt.customer_id = c.id
+        ) AS total_transactions_count,
+        (
+            SELECT COALESCE(SUM(fn_convert_to_base(COALESCE(pt.final_price, 0), pt.currency, 'MXN')), 0)
+            FROM property_transaction pt
+            WHERE pt.customer_id = c.id
+        ) AS total_spent_or_rented_mxn,
+        (
+            SELECT COUNT(*)
+            FROM rent_payment rp
+            INNER JOIN property_transaction pt ON pt.id = rp.transaction_id
+            WHERE pt.customer_id = c.id
+              AND rp.status = 'atrasado'
+        ) AS overdue_payments_count,
+        (
+            SELECT COALESCE(SUM(GREATEST((rp.amount_due + COALESCE(rp.late_fee, 0)) - rp.amount_paid, 0)), 0)
+            FROM rent_payment rp
+            INNER JOIN property_transaction pt ON pt.id = rp.transaction_id
+            WHERE pt.customer_id = c.id
+              AND rp.status IN ('pendiente','parcial','atrasado')
+        ) AS outstanding_balance_mxn,
+        c.created_at,
+        c.updated_at
+    FROM customer c
+    LEFT JOIN `user` ua ON ua.id = c.assigned_agent_id
+    LEFT JOIN `user` ucb ON ucb.id = c.created_by
+    LEFT JOIN `user` uub ON uub.id = c.updated_by
+    WHERE c.id = p_customer_id
+    LIMIT 1;
+
+    SELECT
+        lc.id AS lead_contact_id,
+        lc.property_id,
+        p.title AS property_title,
+        lc.name,
+        lc.email,
+        lc.phone,
+        lc.status,
+        lc.comments,
+        lc.created_at,
+        lc.updated_at
+    FROM lead_contact lc
+    LEFT JOIN property p ON p.id = lc.property_id
+    WHERE lc.customer_id = p_customer_id
+    ORDER BY lc.created_at DESC, lc.id DESC;
+
+    SELECT
+        pt.id AS transaction_id,
+        pt.property_id,
+        p.title AS property_title,
+        pt.transaction_type,
+        pt.status,
+        pt.final_price,
+        pt.currency,
+        pt.transaction_date,
+        pt.notes,
+        pt.cancelled_at,
+        pt.cancel_reason,
+        pt.created_at
+    FROM property_transaction pt
+    LEFT JOIN property p ON p.id = pt.property_id
+    WHERE pt.customer_id = p_customer_id
+    ORDER BY pt.transaction_date DESC, pt.id DESC;
+
+    SELECT
+        rp.id AS payment_id,
+        rp.transaction_id,
+        rp.period_year,
+        rp.period_month,
+        rp.due_date,
+        rp.amount_due,
+        rp.amount_paid,
+        GREATEST((rp.amount_due + COALESCE(rp.late_fee, 0)) - rp.amount_paid, 0) AS amount_pending,
+        rp.currency,
+        rp.status,
+        rp.late_fee,
+        rp.paid_at,
+        rp.notes,
+        rp.updated_at
+    FROM rent_payment rp
+    INNER JOIN property_transaction pt ON pt.id = rp.transaction_id
+    WHERE pt.customer_id = p_customer_id
+    ORDER BY rp.due_date DESC, rp.id DESC;
+
+    SELECT
+        cn.id AS note_id,
+        cn.customer_id,
+        cn.note,
+        cn.created_by,
+        u.full_name AS created_by_name,
+        cn.created_at
+    FROM customer_note cn
+    LEFT JOIN `user` u ON u.id = cn.created_by
+    WHERE cn.customer_id = p_customer_id
+    ORDER BY cn.created_at DESC, cn.id DESC;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `customer_note_add` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `customer_note_add`(
+    IN p_customer_id INT,
+    IN p_note TEXT,
+    IN p_created_by INT
+)
+BEGIN
+    DECLARE v_customer_exists INT;
+    DECLARE v_note_id INT;
+    DECLARE v_note_trimmed TEXT;
+
+    IF p_customer_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'customer_id es requerido';
+    END IF;
+
+    SET v_note_trimmed = TRIM(COALESCE(p_note, ''));
+    IF v_note_trimmed = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'note es requerida';
+    END IF;
+
+    SELECT id INTO v_customer_exists
+    FROM customer
+    WHERE id = p_customer_id
+    LIMIT 1;
+
+    IF v_customer_exists IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Cliente no encontrado';
+    END IF;
+
+    INSERT INTO customer_note (
+        customer_id,
+        note,
+        created_by
+    ) VALUES (
+        p_customer_id,
+        v_note_trimmed,
+        p_created_by
+    );
+
+    SET v_note_id = LAST_INSERT_ID();
+
+    UPDATE customer
+       SET notes = v_note_trimmed,
+           updated_by = p_created_by,
+           updated_at = NOW()
+    WHERE id = p_customer_id;
+
+    SELECT
+        cn.id AS note_id,
+        cn.customer_id,
+        cn.note,
+        cn.created_by,
+        u.full_name AS created_by_name,
+        cn.created_at
+    FROM customer_note cn
+    LEFT JOIN `user` u ON u.id = cn.created_by
+    WHERE cn.id = v_note_id
+    LIMIT 1;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `customer_note_list` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `customer_note_list`(
+    IN p_customer_id INT
+)
+BEGIN
+    DECLARE v_customer_exists INT;
+
+    IF p_customer_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'customer_id es requerido';
+    END IF;
+
+    SELECT id INTO v_customer_exists
+    FROM customer
+    WHERE id = p_customer_id
+    LIMIT 1;
+
+    IF v_customer_exists IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Cliente no encontrado';
+    END IF;
+
+    SELECT
+        cn.id AS note_id,
+        cn.customer_id,
+        cn.note,
+        cn.created_by,
+        u.full_name AS created_by_name,
+        cn.created_at
+    FROM customer_note cn
+    LEFT JOIN `user` u ON u.id = cn.created_by
+    WHERE cn.customer_id = p_customer_id
+    ORDER BY cn.created_at DESC, cn.id DESC;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1120,10 +2041,32 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `customer_upsert`(
     IN p_email VARCHAR(150),
     IN p_phone VARCHAR(50),
     IN p_customer_type VARCHAR(50),
-    IN p_notes TEXT
+    IN p_notes TEXT,
+    IN p_status VARCHAR(20),
+    IN p_source VARCHAR(50),
+    IN p_assigned_agent_id INT,
+    IN p_last_contact_at DATETIME,
+    IN p_next_follow_up_at DATETIME,
+    IN p_rfc VARCHAR(20),
+    IN p_business_name VARCHAR(150),
+    IN p_billing_email VARCHAR(150),
+    IN p_address_line VARCHAR(255),
+    IN p_actor_user_id INT
 )
 BEGIN
     DECLARE v_customer_id INT;
+    DECLARE v_status VARCHAR(20);
+
+    IF p_full_name IS NULL OR TRIM(p_full_name) = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'full_name es requerido';
+    END IF;
+
+    SET v_status = COALESCE(NULLIF(TRIM(p_status), ''), 'activo');
+    IF v_status NOT IN ('activo','inactivo','bloqueado') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'status inválido. Usa: activo, inactivo, bloqueado';
+    END IF;
 
     IF p_id IS NULL OR p_id = 0 THEN
         INSERT INTO customer (
@@ -1131,25 +2074,62 @@ BEGIN
             email,
             phone,
             customer_type,
-            notes
+            notes,
+            status,
+            source,
+            assigned_agent_id,
+            last_contact_at,
+            next_follow_up_at,
+            rfc,
+            business_name,
+            billing_email,
+            address_line,
+            created_by,
+            updated_by
         )
         VALUES (
-            p_full_name,
+            TRIM(p_full_name),
             p_email,
             p_phone,
             p_customer_type,
-            p_notes
+            p_notes,
+            v_status,
+            p_source,
+            p_assigned_agent_id,
+            p_last_contact_at,
+            p_next_follow_up_at,
+            p_rfc,
+            p_business_name,
+            p_billing_email,
+            p_address_line,
+            p_actor_user_id,
+            p_actor_user_id
         );
 
         SET v_customer_id = LAST_INSERT_ID();
     ELSE
         UPDATE customer
-           SET full_name = p_full_name,
+           SET full_name = TRIM(p_full_name),
                email = p_email,
                phone = p_phone,
                customer_type = p_customer_type,
-               notes = p_notes
+               notes = p_notes,
+               status = v_status,
+               source = p_source,
+               assigned_agent_id = p_assigned_agent_id,
+               last_contact_at = p_last_contact_at,
+               next_follow_up_at = p_next_follow_up_at,
+               rfc = p_rfc,
+               business_name = p_business_name,
+               billing_email = p_billing_email,
+               address_line = p_address_line,
+               updated_by = p_actor_user_id
          WHERE id = p_id;
+
+        IF ROW_COUNT() = 0 THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Cliente no encontrado';
+        END IF;
 
         SET v_customer_id = p_id;
     END IF;
@@ -1286,6 +2266,14 @@ BEGIN
 
     SET v_offset = (p_page_number - 1) * p_page_size;
 
+    IF p_status IS NOT NULL AND p_status <> '' THEN
+        SET p_status = LOWER(p_status);
+        IF p_status NOT IN ('nuevo','contactado','calificado','cerrado') THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'status inválido. Usa: nuevo, contactado, calificado, cerrado';
+        END IF;
+    END IF;
+
     SELECT COUNT(*)
       INTO v_total_records
     FROM lead_contact l
@@ -1320,6 +2308,30 @@ BEGIN
             WHEN l.customer_id IS NULL THEN 0
             ELSE 1
         END AS is_converted,
+        l.changed_by,
+        l.converted_by,
+        l.converted_at,
+        l.conversion_notes,
+        l.lead_notes,
+        (
+            SELECT COUNT(*)
+            FROM lead_contact_note ln
+            WHERE ln.lead_contact_id = l.id
+        ) AS notes_count,
+        (
+            SELECT ln.note
+            FROM lead_contact_note ln
+            WHERE ln.lead_contact_id = l.id
+            ORDER BY ln.created_at DESC, ln.id DESC
+            LIMIT 1
+        ) AS last_note,
+        (
+            SELECT ln.created_at
+            FROM lead_contact_note ln
+            WHERE ln.lead_contact_id = l.id
+            ORDER BY ln.created_at DESC, ln.id DESC
+            LIMIT 1
+        ) AS last_note_at,
         l.created_at,
         l.updated_at
     FROM lead_contact l
@@ -1356,6 +2368,51 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `lead_contact_register`(
     IN p_comments TEXT
 )
 BEGIN
+    DECLARE v_property_exists INT;
+    DECLARE v_recent_duplicate_id INT;
+
+    IF p_property_id IS NULL OR p_name IS NULL OR p_email IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'property_id, name y email son requeridos';
+    END IF;
+
+    IF p_email NOT REGEXP '^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Formato de email inválido';
+    END IF;
+
+    IF p_phone IS NOT NULL AND p_phone <> '' AND p_phone NOT REGEXP '^[0-9+()\\-[:space:]]{7,20}$' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Formato de teléfono inválido';
+    END IF;
+
+    SELECT id
+      INTO v_property_exists
+      FROM property
+     WHERE id = p_property_id
+     LIMIT 1;
+
+    IF v_property_exists IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Propiedad no encontrada';
+    END IF;
+
+    SET p_email = LOWER(TRIM(p_email));
+
+    SELECT id
+      INTO v_recent_duplicate_id
+      FROM lead_contact
+     WHERE property_id = p_property_id
+       AND LOWER(email) = p_email
+       AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+     ORDER BY id DESC
+     LIMIT 1;
+
+    IF v_recent_duplicate_id IS NOT NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Ya existe un lead reciente con ese email para esta propiedad (últimas 24h)';
+    END IF;
+
     INSERT INTO lead_contact (
         property_id,
         name,
@@ -1372,7 +2429,7 @@ BEGIN
         p_email,
         p_phone,
         p_comments,
-        'new',
+        'nuevo',
         NOW(),
         NOW()
     );
@@ -1396,15 +2453,257 @@ DELIMITER ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `lead_contact_status_update`(
     IN p_lead_contact_id INT,
-    IN p_status VARCHAR(50)
+    IN p_status VARCHAR(50),
+    IN p_changed_by INT
 )
 BEGIN
+    DECLARE v_lead_exists INT;
+
+    IF p_lead_contact_id IS NULL OR p_status IS NULL OR p_status = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'lead_contact_id y status son requeridos';
+    END IF;
+
+    SET p_status = LOWER(TRIM(p_status));
+    IF p_status NOT IN ('nuevo','contactado','calificado','cerrado') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'status inválido. Usa: nuevo, contactado, calificado, cerrado';
+    END IF;
+
+    SELECT id INTO v_lead_exists
+      FROM lead_contact
+     WHERE id = p_lead_contact_id
+     LIMIT 1;
+
+    IF v_lead_exists IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lead no encontrado';
+    END IF;
+
     UPDATE lead_contact
        SET status = p_status,
+           changed_by = p_changed_by,
            updated_at = NOW()
      WHERE id = p_lead_contact_id;
 
     SELECT ROW_COUNT() AS affected_rows;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `lead_contact_notes_update` */;
+/*!50003 DROP PROCEDURE IF EXISTS `lead_contact_notes_list` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `lead_contact_notes_update`(
+    IN p_lead_contact_id INT,
+    IN p_note TEXT,
+    IN p_created_by INT
+)
+BEGIN
+    DECLARE v_lead_exists INT;
+    DECLARE v_note_id INT;
+    DECLARE v_note_trimmed TEXT;
+
+    IF p_lead_contact_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'lead_contact_id es requerido';
+    END IF;
+
+    SET v_note_trimmed = TRIM(COALESCE(p_note, ''));
+    IF v_note_trimmed = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'note es requerida';
+    END IF;
+
+    SELECT id INTO v_lead_exists
+      FROM lead_contact
+     WHERE id = p_lead_contact_id
+     LIMIT 1;
+
+    IF v_lead_exists IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lead no encontrado';
+    END IF;
+
+    INSERT INTO lead_contact_note (
+        lead_contact_id,
+        note,
+        created_by
+    ) VALUES (
+        p_lead_contact_id,
+        v_note_trimmed,
+        p_created_by
+    );
+
+    SET v_note_id = LAST_INSERT_ID();
+
+    UPDATE lead_contact
+       SET lead_notes = v_note_trimmed,
+           changed_by = p_created_by,
+           updated_at = NOW()
+     WHERE id = p_lead_contact_id;
+
+    SELECT
+        n.id AS note_id,
+        n.lead_contact_id,
+        n.note,
+        n.created_by,
+        u.full_name AS created_by_name,
+        n.created_at
+    FROM lead_contact_note n
+    LEFT JOIN user u ON u.id = n.created_by
+    WHERE n.id = v_note_id
+    LIMIT 1;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `lead_contact_notes_list`(
+    IN p_lead_contact_id INT
+)
+BEGIN
+    DECLARE v_lead_exists INT;
+
+    IF p_lead_contact_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'lead_contact_id es requerido';
+    END IF;
+
+    SELECT id INTO v_lead_exists
+      FROM lead_contact
+     WHERE id = p_lead_contact_id
+     LIMIT 1;
+
+    IF v_lead_exists IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lead no encontrado';
+    END IF;
+
+    SELECT
+        n.id AS note_id,
+        n.lead_contact_id,
+        n.note,
+        n.created_by,
+        u.full_name AS created_by_name,
+        n.created_at
+    FROM lead_contact_note n
+    LEFT JOIN user u ON u.id = n.created_by
+    WHERE n.lead_contact_id = p_lead_contact_id
+    ORDER BY n.created_at DESC, n.id DESC;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `lead_contact_convert_to_customer` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `lead_contact_convert_to_customer`(
+    IN p_lead_contact_id INT,
+    IN p_customer_type VARCHAR(50),
+    IN p_notes TEXT,
+    IN p_converted_by INT
+)
+BEGIN
+    DECLARE v_name VARCHAR(150);
+    DECLARE v_email VARCHAR(150);
+    DECLARE v_phone VARCHAR(50);
+    DECLARE v_comments TEXT;
+    DECLARE v_status VARCHAR(50);
+    DECLARE v_customer_id INT;
+
+    IF p_lead_contact_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'lead_contact_id es requerido';
+    END IF;
+
+    SELECT name, LOWER(email), phone, comments, status
+      INTO v_name, v_email, v_phone, v_comments, v_status
+      FROM lead_contact
+     WHERE id = p_lead_contact_id
+     LIMIT 1;
+
+    IF v_name IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lead no encontrado';
+    END IF;
+
+    IF v_status = 'cerrado' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'El lead ya está cerrado';
+    END IF;
+
+    SELECT id
+      INTO v_customer_id
+      FROM customer
+     WHERE LOWER(email) = v_email
+     ORDER BY id DESC
+     LIMIT 1;
+
+    IF v_customer_id IS NULL THEN
+        INSERT INTO customer (
+            full_name, email, phone, customer_type, notes
+        ) VALUES (
+            v_name,
+            v_email,
+            v_phone,
+            COALESCE(NULLIF(TRIM(p_customer_type), ''), 'comprador'),
+            COALESCE(NULLIF(TRIM(p_notes), ''), v_comments)
+        );
+        SET v_customer_id = LAST_INSERT_ID();
+    ELSE
+        UPDATE customer
+           SET full_name = COALESCE(NULLIF(TRIM(v_name), ''), full_name),
+               phone = COALESCE(NULLIF(TRIM(v_phone), ''), phone),
+               customer_type = COALESCE(NULLIF(TRIM(p_customer_type), ''), customer_type),
+               notes = COALESCE(NULLIF(TRIM(p_notes), ''), notes)
+         WHERE id = v_customer_id;
+    END IF;
+
+    UPDATE lead_contact
+       SET customer_id = v_customer_id,
+           status = 'cerrado',
+           changed_by = p_converted_by,
+           converted_by = p_converted_by,
+           converted_at = NOW(),
+           conversion_notes = p_notes,
+           updated_at = NOW()
+     WHERE id = p_lead_contact_id;
+
+    SELECT
+        p_lead_contact_id AS lead_contact_id,
+        v_customer_id AS customer_id,
+        'cerrado' AS status,
+        1 AS is_converted;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1423,57 +2722,125 @@ DELIMITER ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `property_get_detail`(IN p_property_id INT)
 BEGIN
+    -- result[0]: propiedad base
     SELECT
         p.*,
-        pt.name AS property_type,
-        o.name AS operation,
-        c.name AS city,
-        z.name AS zone,
+        pt.name  AS property_type,
+        o.name   AS operation,
+        c.name   AS city,
+        z.name   AS zone,
         pps.name AS publication_status,
         pbs.name AS business_status,
         fn_format_price(p.price_value, p.currency) AS formatted_price
     FROM property p
-    INNER JOIN property_type pt ON pt.id = p.property_type_id
-    INNER JOIN operation o ON o.id = p.operation_id
-    INNER JOIN city c ON c.id = p.city_id
-    INNER JOIN zone z ON z.id = p.zone_id
+    INNER JOIN property_type               pt  ON pt.id  = p.property_type_id
+    INNER JOIN operation                   o   ON o.id   = p.operation_id
+    INNER JOIN city                        c   ON c.id   = p.city_id
+    INNER JOIN zone                        z   ON z.id   = p.zone_id
     INNER JOIN property_publication_status pps ON pps.id = p.publication_status_id
-    INNER JOIN property_business_status pbs ON pbs.id = p.business_status_id
+    INNER JOIN property_business_status    pbs ON pbs.id = p.business_status_id
     WHERE p.id = p_property_id;
 
+    -- result[1]: industrial
     SELECT * FROM property_industrial WHERE property_id = p_property_id;
+
+    -- result[2]: residential
     SELECT * FROM property_residential WHERE property_id = p_property_id;
+
+    -- result[3]: land
     SELECT * FROM property_land WHERE property_id = p_property_id;
 
-    SELECT
-        a.id,
-        a.name
-    FROM property_amenity pa
-    INNER JOIN amenity a ON a.id = pa.amenity_id
-    WHERE pa.property_id = p_property_id
-    ORDER BY a.name;
+    -- result[4]: amenities
+    SELECT a.id, a.name
+      FROM property_amenity pa
+      INNER JOIN amenity a ON a.id = pa.amenity_id
+     WHERE pa.property_id = p_property_id
+     ORDER BY a.name;
 
-    SELECT
-        id,
-        property_id,
-        image_url,
-        sort_order
-    FROM property_image
-    WHERE property_id = p_property_id
-    ORDER BY sort_order, id;
+    -- result[5]: images
+    SELECT id, property_id, image_url, sort_order
+      FROM property_image
+     WHERE property_id = p_property_id
+     ORDER BY sort_order, id;
 
+    -- result[6]: agents
+    SELECT ag.id, ag.full_name, ag.email, ag.phone, ag.bio, ag.image_url
+      FROM property_agent pag
+      INNER JOIN agent ag ON ag.id = pag.agent_id
+     WHERE pag.property_id = p_property_id
+       AND ag.is_active = b'1'
+     ORDER BY ag.full_name;
+
+    -- result[7]: transacción activa más reciente (con detalle de apartado o renta)
     SELECT
-        ag.id,
-        ag.full_name,
-        ag.email,
-        ag.phone,
-        ag.bio,
-        ag.image_url
-    FROM property_agent pag
-    INNER JOIN agent ag ON ag.id = pag.agent_id
-    WHERE pag.property_id = p_property_id
-      AND ag.is_active = b'1'
-    ORDER BY ag.full_name;
+        pt.id              AS transaction_id,
+        pt.transaction_type,
+        pt.status          AS transaction_status,
+        pt.final_price,
+        pt.currency,
+        pt.transaction_date,
+        pt.notes,
+        pt.created_at,
+        pt.cancelled_at,
+        pt.cancelled_by,
+        pt.cancel_reason,
+        c.id               AS customer_id,
+        c.full_name        AS customer_name,
+        c.email            AS customer_email,
+        c.phone            AS customer_phone,
+        c.customer_type,
+        tr_res.deposit_amount      AS reservation_deposit,
+        tr_res.deposit_currency    AS reservation_currency,
+        tr_res.expires_at          AS reservation_expires_at,
+        tr_res.applied_to_sale     AS reservation_applied_to_sale,
+        tr_ren.start_date          AS rental_start_date,
+        tr_ren.end_date            AS rental_end_date,
+        tr_ren.monthly_rent        AS rental_monthly_rent,
+        tr_ren.deposit_amount      AS rental_deposit,
+        tr_ren.deposit_currency    AS rental_deposit_currency,
+        tr_ren.payment_day         AS rental_payment_day,
+        tr_ren.auto_renew          AS rental_auto_renew
+    FROM property_transaction pt
+    INNER JOIN customer c ON c.id = pt.customer_id
+    LEFT JOIN transaction_reservation tr_res ON tr_res.transaction_id = pt.id
+    LEFT JOIN transaction_rental      tr_ren ON tr_ren.transaction_id = pt.id
+    WHERE pt.property_id = p_property_id
+      AND pt.status = 'activa'
+    ORDER BY pt.transaction_date DESC, pt.id DESC
+    LIMIT 1;
+
+    -- result[8]: estado de pago del mes actual (solo si está rentada)
+    SELECT
+        rp.id,
+        rp.period_year,
+        rp.period_month,
+        rp.due_date,
+        rp.amount_due,
+        rp.amount_paid,
+        rp.currency,
+        rp.status,
+        rp.late_fee,
+        (rp.amount_due - rp.amount_paid + IFNULL(rp.late_fee, 0)) AS balance_due,
+        (
+            SELECT COUNT(*)
+              FROM rent_payment rp2
+             WHERE rp2.transaction_id = rp.transaction_id
+               AND rp2.status IN ('atrasado', 'parcial')
+        ) AS overdue_count,
+        (
+            SELECT IFNULL(SUM(rp3.amount_due - rp3.amount_paid + IFNULL(rp3.late_fee, 0)), 0)
+              FROM rent_payment rp3
+             WHERE rp3.transaction_id = rp.transaction_id
+               AND rp3.status IN ('atrasado', 'parcial')
+        ) AS total_overdue_amount
+    FROM rent_payment rp
+    INNER JOIN property_transaction pt ON pt.id = rp.transaction_id
+    WHERE pt.property_id    = p_property_id
+      AND pt.transaction_type = 'renta'
+      AND pt.status = 'activa'
+      AND rp.period_year    = YEAR(CURDATE())
+      AND rp.period_month   = MONTH(CURDATE())
+    LIMIT 1;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -1850,7 +3217,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `property_search`(
     IN p_search_text        VARCHAR(255),
     -- Advanced: Residential
     IN p_min_bedrooms       INT,
-    IN p_min_bathrooms      INT,
+    IN p_min_bathrooms      DECIMAL(5,2),
     IN p_min_parking        INT,
     IN p_pets_allowed       TINYINT,
     -- Advanced: Industrial
@@ -1861,10 +3228,14 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `property_search`(
     -- Advanced: Land
     IN p_land_use           VARCHAR(150),
     -- Amenities (comma-separated names, e.g. 'Alberca,Gimnasio')
-    IN p_amenities          VARCHAR(500),
+    IN p_amenities          TEXT,
     -- Pagination
     IN p_page_number        INT,
-    IN p_page_size          INT
+    IN p_page_size          INT,
+    -- NULL = sin filtro | 'activo' | 'inactivo'
+    IN p_publication_status VARCHAR(20),
+    -- NULL = sin filtro | 'disponible' | 'apartado' | 'vendido' | 'rentado'
+    IN p_business_status    VARCHAR(50)
 )
 BEGIN
     DECLARE v_offset        INT DEFAULT 0;
@@ -1889,42 +3260,41 @@ BEGIN
       INTO v_total_records
     FROM property p
     JOIN property_publication_status pps ON pps.id = p.publication_status_id
+    JOIN property_business_status pbs    ON pbs.id = p.business_status_id
     LEFT JOIN property_residential pr   ON pr.property_id = p.id
     LEFT JOIN property_industrial  pi   ON pi.property_id = p.id
     LEFT JOIN property_land        pl   ON pl.property_id = p.id
-    WHERE pps.name = 'activo'
-      AND (p_property_type_id IS NULL OR p.property_type_id = p_property_type_id)
-      AND (p_operation_id     IS NULL OR p.operation_id     = p_operation_id)
-      AND (p_city_id          IS NULL OR p.city_id          = p_city_id)
-      AND (p_zone_id          IS NULL OR p.zone_id          = p_zone_id)
-      AND (p_min_area         IS NULL OR p.area_value      >= p_min_area)
-      AND (p_max_area         IS NULL OR p.area_value      <= p_max_area)
-      AND (p_min_price        IS NULL OR p.price_value     >= p_min_price)
-      AND (p_max_price        IS NULL OR p.price_value     <= p_max_price)
-      AND (p_featured_only    IS NULL OR p_featured_only = 0 OR p.is_featured = 1)
-      AND (p_search_text      IS NULL OR p_search_text = ''
-           OR p.title       LIKE CONCAT('%', p_search_text, '%')
-           OR p.description LIKE CONCAT('%', p_search_text, '%'))
-      -- Residential filters
-      AND (p_min_bedrooms     IS NULL OR pr.bedrooms     >= p_min_bedrooms)
-      AND (p_min_bathrooms    IS NULL OR pr.bathrooms    >= p_min_bathrooms)
-      AND (p_min_parking      IS NULL OR pr.parking      >= p_min_parking)
-      AND (p_pets_allowed     IS NULL OR p_pets_allowed = 0 OR pr.pets_allowed = 1)
-      -- Industrial filters
-      AND (p_min_clear_height IS NULL OR pi.clear_height >= p_min_clear_height)
-      AND (p_min_docks        IS NULL OR pi.docks        >= p_min_docks)
-      AND (p_min_power_kva    IS NULL OR pi.power_kva    >= p_min_power_kva)
-      AND (p_industrial_park  IS NULL OR p_industrial_park = 0 OR (pi.industrial_park IS NOT NULL AND pi.industrial_park != ''))
-      -- Land filters
-      AND (p_land_use         IS NULL OR p_land_use = '' OR pl.land_use = p_land_use)
-      -- Amenity filter: property must have ALL requested amenities
-      AND (v_amenity_count = 0 OR (
-          SELECT COUNT(DISTINCT a.name)
-          FROM property_amenity pa
-          JOIN amenity a ON a.id = pa.amenity_id
-          WHERE pa.property_id = p.id
-            AND FIND_IN_SET(a.name, p_amenities) > 0
-      ) >= v_amenity_count);
+    WHERE
+        (p_publication_status IS NULL OR pps.name = p_publication_status)
+        AND (p_business_status IS NULL OR pbs.name = p_business_status)
+        AND (p_property_type_id IS NULL OR p.property_type_id = p_property_type_id)
+        AND (p_operation_id     IS NULL OR p.operation_id     = p_operation_id)
+        AND (p_city_id          IS NULL OR p.city_id          = p_city_id)
+        AND (p_zone_id          IS NULL OR p.zone_id          = p_zone_id)
+        AND (p_min_area         IS NULL OR p.area_value      >= p_min_area)
+        AND (p_max_area         IS NULL OR p.area_value      <= p_max_area)
+        AND (p_min_price        IS NULL OR IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) >= p_min_price)
+        AND (p_max_price        IS NULL OR IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) <= p_max_price)
+        AND (p_featured_only    IS NULL OR p_featured_only = 0 OR p.is_featured = 1)
+        AND (p_search_text      IS NULL OR p_search_text = ''
+             OR p.title       LIKE CONCAT('%', p_search_text, '%')
+             OR p.description LIKE CONCAT('%', p_search_text, '%'))
+        AND (p_min_bedrooms     IS NULL OR pr.bedrooms     >= p_min_bedrooms)
+        AND (p_min_bathrooms    IS NULL OR pr.bathrooms    >= p_min_bathrooms)
+        AND (p_min_parking      IS NULL OR pr.parking      >= p_min_parking)
+        AND (p_pets_allowed     IS NULL OR p_pets_allowed = 0 OR pr.pets_allowed = 1)
+        AND (p_min_clear_height IS NULL OR pi.clear_height >= p_min_clear_height)
+        AND (p_min_docks        IS NULL OR pi.docks        >= p_min_docks)
+        AND (p_min_power_kva    IS NULL OR pi.power_kva    >= p_min_power_kva)
+        AND (p_industrial_park  IS NULL OR p_industrial_park = 0 OR (pi.industrial_park IS NOT NULL AND pi.industrial_park != ''))
+        AND (p_land_use         IS NULL OR p_land_use = '' OR pl.land_use = p_land_use)
+        AND (v_amenity_count = 0 OR (
+            SELECT COUNT(DISTINCT a.name)
+            FROM property_amenity pa
+            JOIN amenity a ON a.id = pa.amenity_id
+            WHERE pa.property_id = p.id
+              AND FIND_IN_SET(a.name, p_amenities) > 0
+        ) >= v_amenity_count);
 
     SET v_total_pages = CEIL(v_total_records / p_page_size);
 
@@ -1949,19 +3319,9 @@ BEGIN
         p.price_value   AS original_price,
         p.currency      AS original_currency,
         CONCAT('$', FORMAT(p.price_value, 2), ' ', p.currency) AS formatted_original_price,
-        CASE
-            WHEN p.currency = v_target_curr THEN p.price_value
-            WHEN p.currency = 'USD' AND v_target_curr = 'MXN' THEN p.price_value * 17.5
-            WHEN p.currency = 'MXN' AND v_target_curr = 'USD' THEN p.price_value / 17.5
-            ELSE p.price_value
-        END AS normalized_price,
+        IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) AS normalized_price,
         CONCAT('$', FORMAT(
-            CASE
-                WHEN p.currency = v_target_curr THEN p.price_value
-                WHEN p.currency = 'USD' AND v_target_curr = 'MXN' THEN p.price_value * 17.5
-                WHEN p.currency = 'MXN' AND v_target_curr = 'USD' THEN p.price_value / 17.5
-                ELSE p.price_value
-            END, 2), ' ', v_target_curr) AS formatted_normalized_price,
+            IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value), 2), ' ', v_target_curr) AS formatted_normalized_price,
         p.views_count,
         p.is_featured,
         p.created_at,
@@ -1972,6 +3332,13 @@ BEGIN
         z.name          AS zone_name,
         pps.name        AS publication_status,
         pbs.name        AS business_status,
+        atx.transaction_id        AS active_transaction_id,
+        atx.transaction_type      AS active_transaction_type,
+        atx.transaction_status    AS active_transaction_status,
+        atx.customer_id           AS active_transaction_customer_id,
+        rp_cur.id                 AS current_payment_id,
+        rp_cur.status             AS current_payment_status,
+        (rp_cur.amount_due - rp_cur.amount_paid + IFNULL(rp_cur.late_fee, 0)) AS current_payment_balance_due,
         (SELECT pi2.image_url FROM property_image pi2
          WHERE pi2.property_id = p.id ORDER BY pi2.sort_order ASC LIMIT 1) AS main_image_url
     FROM property p
@@ -1984,39 +3351,56 @@ BEGIN
     LEFT JOIN property_residential   pr  ON pr.property_id = p.id
     LEFT JOIN property_industrial    pi  ON pi.property_id = p.id
     LEFT JOIN property_land          pl  ON pl.property_id = p.id
-    WHERE pps.name = 'activo'
-      AND (p_property_type_id IS NULL OR p.property_type_id = p_property_type_id)
-      AND (p_operation_id     IS NULL OR p.operation_id     = p_operation_id)
-      AND (p_city_id          IS NULL OR p.city_id          = p_city_id)
-      AND (p_zone_id          IS NULL OR p.zone_id          = p_zone_id)
-      AND (p_min_area         IS NULL OR p.area_value      >= p_min_area)
-      AND (p_max_area         IS NULL OR p.area_value      <= p_max_area)
-      AND (p_min_price        IS NULL OR p.price_value     >= p_min_price)
-      AND (p_max_price        IS NULL OR p.price_value     <= p_max_price)
-      AND (p_featured_only    IS NULL OR p_featured_only = 0 OR p.is_featured = 1)
-      AND (p_search_text      IS NULL OR p_search_text = ''
-           OR p.title       LIKE CONCAT('%', p_search_text, '%')
-           OR p.description LIKE CONCAT('%', p_search_text, '%'))
-      -- Residential
-      AND (p_min_bedrooms     IS NULL OR pr.bedrooms     >= p_min_bedrooms)
-      AND (p_min_bathrooms    IS NULL OR pr.bathrooms    >= p_min_bathrooms)
-      AND (p_min_parking      IS NULL OR pr.parking      >= p_min_parking)
-      AND (p_pets_allowed     IS NULL OR p_pets_allowed = 0 OR pr.pets_allowed = 1)
-      -- Industrial
-      AND (p_min_clear_height IS NULL OR pi.clear_height >= p_min_clear_height)
-      AND (p_min_docks        IS NULL OR pi.docks        >= p_min_docks)
-      AND (p_min_power_kva    IS NULL OR pi.power_kva    >= p_min_power_kva)
-      AND (p_industrial_park  IS NULL OR p_industrial_park = 0 OR (pi.industrial_park IS NOT NULL AND pi.industrial_park != ''))
-      -- Land
-      AND (p_land_use         IS NULL OR p_land_use = '' OR pl.land_use = p_land_use)
-      -- Amenities
-      AND (v_amenity_count = 0 OR (
-          SELECT COUNT(DISTINCT a.name)
-          FROM property_amenity pa
-          JOIN amenity a ON a.id = pa.amenity_id
-          WHERE pa.property_id = p.id
-            AND FIND_IN_SET(a.name, p_amenities) > 0
-      ) >= v_amenity_count)
+    LEFT JOIN (
+        SELECT
+            pt1.id AS transaction_id,
+            pt1.property_id,
+            pt1.transaction_type,
+            pt1.status AS transaction_status,
+            pt1.customer_id
+        FROM property_transaction pt1
+        INNER JOIN (
+            SELECT property_id, MAX(id) AS latest_transaction_id
+            FROM property_transaction
+            WHERE status = 'activa'
+            GROUP BY property_id
+        ) tmax ON tmax.latest_transaction_id = pt1.id
+    ) atx ON atx.property_id = p.id
+    LEFT JOIN rent_payment rp_cur
+      ON rp_cur.transaction_id = atx.transaction_id
+     AND rp_cur.period_year = YEAR(CURDATE())
+     AND rp_cur.period_month = MONTH(CURDATE())
+    WHERE
+        (p_publication_status IS NULL OR pps.name = p_publication_status)
+        AND (p_business_status IS NULL OR pbs.name = p_business_status)
+        AND (p_property_type_id IS NULL OR p.property_type_id = p_property_type_id)
+        AND (p_operation_id     IS NULL OR p.operation_id     = p_operation_id)
+        AND (p_city_id          IS NULL OR p.city_id          = p_city_id)
+        AND (p_zone_id          IS NULL OR p.zone_id          = p_zone_id)
+        AND (p_min_area         IS NULL OR p.area_value      >= p_min_area)
+        AND (p_max_area         IS NULL OR p.area_value      <= p_max_area)
+        AND (p_min_price        IS NULL OR IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) >= p_min_price)
+        AND (p_max_price        IS NULL OR IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) <= p_max_price)
+        AND (p_featured_only    IS NULL OR p_featured_only = 0 OR p.is_featured = 1)
+        AND (p_search_text      IS NULL OR p_search_text = ''
+             OR p.title       LIKE CONCAT('%', p_search_text, '%')
+             OR p.description LIKE CONCAT('%', p_search_text, '%'))
+        AND (p_min_bedrooms     IS NULL OR pr.bedrooms     >= p_min_bedrooms)
+        AND (p_min_bathrooms    IS NULL OR pr.bathrooms    >= p_min_bathrooms)
+        AND (p_min_parking      IS NULL OR pr.parking      >= p_min_parking)
+        AND (p_pets_allowed     IS NULL OR p_pets_allowed = 0 OR pr.pets_allowed = 1)
+        AND (p_min_clear_height IS NULL OR pi.clear_height >= p_min_clear_height)
+        AND (p_min_docks        IS NULL OR pi.docks        >= p_min_docks)
+        AND (p_min_power_kva    IS NULL OR pi.power_kva    >= p_min_power_kva)
+        AND (p_industrial_park  IS NULL OR p_industrial_park = 0 OR (pi.industrial_park IS NOT NULL AND pi.industrial_park != ''))
+        AND (p_land_use         IS NULL OR p_land_use = '' OR pl.land_use = p_land_use)
+        AND (v_amenity_count = 0 OR (
+            SELECT COUNT(DISTINCT a.name)
+            FROM property_amenity pa
+            JOIN amenity a ON a.id = pa.amenity_id
+            WHERE pa.property_id = p.id
+              AND FIND_IN_SET(a.name, p_amenities) > 0
+        ) >= v_amenity_count)
     ORDER BY p.created_at DESC
     LIMIT p_page_size OFFSET v_offset;
 END ;;
@@ -2043,9 +3427,28 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `property_status_update`(
     IN p_change_notes TEXT
 )
 BEGIN
+    DECLARE v_current_publication_status_id INT;
+    DECLARE v_current_business_status_id INT;
+    DECLARE v_new_publication_status_id INT;
+    DECLARE v_new_business_status_id INT;
+
+    SELECT publication_status_id, business_status_id
+      INTO v_current_publication_status_id, v_current_business_status_id
+      FROM property
+     WHERE id = p_property_id
+     LIMIT 1;
+
+    IF v_current_publication_status_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Propiedad no encontrada';
+    END IF;
+
+    SET v_new_publication_status_id = COALESCE(p_publication_status_id, v_current_publication_status_id);
+    SET v_new_business_status_id = COALESCE(p_business_status_id, v_current_business_status_id);
+
     UPDATE property
-       SET publication_status_id = COALESCE(p_publication_status_id, publication_status_id),
-           business_status_id = COALESCE(p_business_status_id, business_status_id)
+       SET publication_status_id = v_new_publication_status_id,
+           business_status_id = v_new_business_status_id
      WHERE id = p_property_id;
 
     INSERT INTO property_status_history (
@@ -2057,10 +3460,10 @@ BEGIN
     )
     VALUES (
         p_property_id,
-        p_publication_status_id,
-        p_business_status_id,
+        v_new_publication_status_id,
+        v_new_business_status_id,
         p_changed_by,
-        p_change_notes
+        COALESCE(NULLIF(TRIM(p_change_notes), ''), 'Actualización manual de estatus')
     );
 
     SELECT ROW_COUNT() AS affected_rows;
@@ -2091,10 +3494,13 @@ BEGIN
         c.id AS customer_id,
         c.full_name AS customer_name,
         pt.transaction_type,
+        pt.status,
         pt.final_price,
         pt.currency,
         pt.transaction_date,
         pt.notes,
+        pt.cancelled_at,
+        pt.cancel_reason,
         u.full_name AS registered_by
     FROM property_transaction pt
     INNER JOIN property p ON p.id = pt.property_id
@@ -2132,10 +3538,13 @@ BEGIN
         c.phone AS customer_phone,
         c.customer_type,
         pt.transaction_type,
+        pt.status,
         pt.final_price,
         pt.currency,
         pt.transaction_date,
         pt.notes,
+        pt.cancelled_at,
+        pt.cancel_reason,
         u.full_name AS registered_by,
         pt.created_at
     FROM property_transaction pt
@@ -2172,6 +3581,43 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `property_transaction_register`(
 BEGIN
     DECLARE v_business_status_id INT;
     DECLARE v_publication_status_id INT;
+    DECLARE v_active_transaction_id INT;
+    DECLARE v_property_exists INT;
+    DECLARE v_property_transaction_id INT;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    -- Lock de propiedad para evitar doble transacción activa por requests concurrentes
+    SELECT id
+      INTO v_property_exists
+      FROM property
+     WHERE id = p_property_id
+     FOR UPDATE;
+
+    IF v_property_exists IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Propiedad no encontrada';
+    END IF;
+
+    -- Evitar registrar otra transacción activa para la misma propiedad
+    SELECT id
+      INTO v_active_transaction_id
+      FROM property_transaction
+     WHERE property_id = p_property_id
+       AND status = 'activa'
+     ORDER BY transaction_date DESC, id DESC
+     LIMIT 1;
+
+    IF v_active_transaction_id IS NOT NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'La propiedad ya tiene una transacción activa. Cancélala o ciérrala antes de registrar otra.';
+    END IF;
 
     -- Resolver business status según tipo de transacción
     IF p_transaction_type = 'apartado' THEN
@@ -2222,6 +3668,7 @@ BEGIN
         property_id,
         customer_id,
         transaction_type,
+        status,
         final_price,
         currency,
         notes,
@@ -2231,11 +3678,13 @@ BEGIN
         p_property_id,
         p_customer_id,
         p_transaction_type,
+        'activa',
         p_final_price,
         p_currency,
         p_notes,
         p_created_by
     );
+    SET v_property_transaction_id = LAST_INSERT_ID();
 
     -- Actualizar propiedad
     UPDATE property
@@ -2259,7 +3708,131 @@ BEGIN
         CONCAT('Cambio automático por transacción: ', p_transaction_type, '. ', IFNULL(p_notes, ''))
     );
 
-    SELECT LAST_INSERT_ID() AS property_transaction_id;
+    COMMIT;
+
+    SELECT v_property_transaction_id AS property_transaction_id;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `property_transaction_cancel` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `property_transaction_cancel`(
+    IN p_transaction_id INT,
+    IN p_cancel_reason TEXT,
+    IN p_cancelled_by INT
+)
+BEGIN
+    DECLARE v_property_id INT;
+    DECLARE v_transaction_type VARCHAR(20);
+    DECLARE v_current_status VARCHAR(20);
+    DECLARE v_business_status_id INT;
+    DECLARE v_publication_status_id INT;
+    DECLARE v_reason TEXT;
+    DECLARE v_payments_cancelled INT DEFAULT 0;
+
+    SELECT
+        pt.property_id,
+        pt.transaction_type,
+        pt.status
+      INTO v_property_id, v_transaction_type, v_current_status
+      FROM property_transaction pt
+     WHERE pt.id = p_transaction_id
+     LIMIT 1;
+
+    IF v_property_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Transacción no encontrada';
+    END IF;
+
+    IF v_current_status = 'cancelada' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'La transacción ya está cancelada';
+    END IF;
+
+    IF v_current_status = 'cerrada' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se puede cancelar una transacción cerrada';
+    END IF;
+
+    SELECT id
+      INTO v_business_status_id
+      FROM property_business_status
+     WHERE name = 'disponible'
+     LIMIT 1;
+
+    SELECT id
+      INTO v_publication_status_id
+      FROM property_publication_status
+     WHERE name = 'activo'
+     LIMIT 1;
+
+    IF v_business_status_id IS NULL OR v_publication_status_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se encontraron los catálogos de estado de propiedad requeridos';
+    END IF;
+
+    SET v_reason = COALESCE(NULLIF(TRIM(p_cancel_reason), ''), 'Cancelada por usuario');
+
+    START TRANSACTION;
+
+    UPDATE property_transaction
+       SET status = 'cancelada',
+           cancelled_at = NOW(),
+           cancelled_by = p_cancelled_by,
+           cancel_reason = v_reason
+     WHERE id = p_transaction_id;
+
+    IF v_transaction_type = 'renta' THEN
+        UPDATE rent_payment
+           SET status = 'cancelado',
+               notes = CASE
+                           WHEN notes IS NULL OR notes = '' THEN CONCAT('Pago cancelado por cancelación de la transacción #', p_transaction_id)
+                           ELSE CONCAT(notes, ' | Pago cancelado por cancelación de la transacción #', p_transaction_id)
+                       END
+         WHERE transaction_id = p_transaction_id
+           AND status IN ('pendiente', 'atrasado');
+
+        SET v_payments_cancelled = ROW_COUNT();
+    END IF;
+
+    UPDATE property
+       SET business_status_id = v_business_status_id,
+           publication_status_id = v_publication_status_id
+     WHERE id = v_property_id;
+
+    INSERT INTO property_status_history (
+        property_id,
+        publication_status_id,
+        business_status_id,
+        changed_by,
+        change_notes
+    ) VALUES (
+        v_property_id,
+        v_publication_status_id,
+        v_business_status_id,
+        p_cancelled_by,
+        CONCAT('Cancelación de transacción #', p_transaction_id, ': ', v_reason)
+    );
+
+    COMMIT;
+
+    SELECT
+        p_transaction_id AS property_transaction_id,
+        'cancelada' AS status,
+        v_transaction_type AS transaction_type,
+        v_property_id AS property_id,
+        v_payments_cancelled AS payments_cancelled;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -2628,5 +4201,530 @@ SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+--
+-- Stored procedures: transaction operations & rent payments
+--
+
+/*!50003 DROP PROCEDURE IF EXISTS `transaction_reservation_save` */;
+DELIMITER ;;
+CREATE PROCEDURE `transaction_reservation_save`(
+    IN p_transaction_id      INT,
+    IN p_deposit_amount      DECIMAL(14,2),
+    IN p_deposit_currency    CHAR(3),
+    IN p_expires_at          DATETIME,
+    IN p_applied_to_sale     TINYINT(1),
+    IN p_cancellation_policy TEXT
+)
+BEGIN
+    DECLARE v_transaction_type VARCHAR(20);
+    DECLARE v_status VARCHAR(20);
+
+    SELECT transaction_type, status
+      INTO v_transaction_type, v_status
+      FROM property_transaction
+     WHERE id = p_transaction_id
+     LIMIT 1;
+
+    IF v_transaction_type IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Transacción no encontrada';
+    END IF;
+
+    IF v_transaction_type <> 'apartado' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'La transacción no es de tipo apartado';
+    END IF;
+
+    IF v_status <> 'activa' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Solo se puede actualizar apartado en transacciones activas';
+    END IF;
+
+    INSERT INTO transaction_reservation (
+        transaction_id, deposit_amount, deposit_currency,
+        expires_at, applied_to_sale, cancellation_policy
+    ) VALUES (
+        p_transaction_id, p_deposit_amount, p_deposit_currency,
+        p_expires_at, IFNULL(p_applied_to_sale, 0), p_cancellation_policy
+    )
+    ON DUPLICATE KEY UPDATE
+        deposit_amount       = VALUES(deposit_amount),
+        deposit_currency     = VALUES(deposit_currency),
+        expires_at           = VALUES(expires_at),
+        applied_to_sale      = VALUES(applied_to_sale),
+        cancellation_policy  = VALUES(cancellation_policy);
+
+    SELECT * FROM transaction_reservation WHERE transaction_id = p_transaction_id;
+END ;;
+DELIMITER ;
+
+/*!50003 DROP PROCEDURE IF EXISTS `transaction_rental_save` */;
+DELIMITER ;;
+CREATE PROCEDURE `transaction_rental_save`(
+    IN p_transaction_id   INT,
+    IN p_start_date       DATE,
+    IN p_end_date         DATE,
+    IN p_monthly_rent     DECIMAL(14,2),
+    IN p_deposit_amount   DECIMAL(14,2),
+    IN p_deposit_currency CHAR(3),
+    IN p_payment_day      TINYINT,
+    IN p_auto_renew       TINYINT(1)
+)
+BEGIN
+    DECLARE v_transaction_type VARCHAR(20);
+    DECLARE v_status VARCHAR(20);
+
+    SELECT transaction_type, status
+      INTO v_transaction_type, v_status
+      FROM property_transaction
+     WHERE id = p_transaction_id
+     LIMIT 1;
+
+    IF v_transaction_type IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Transacción no encontrada';
+    END IF;
+
+    IF v_transaction_type <> 'renta' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'La transacción no es de tipo renta';
+    END IF;
+
+    IF v_status <> 'activa' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Solo se puede actualizar renta en transacciones activas';
+    END IF;
+
+    INSERT INTO transaction_rental (
+        transaction_id, start_date, end_date, monthly_rent,
+        deposit_amount, deposit_currency, payment_day, auto_renew
+    ) VALUES (
+        p_transaction_id, p_start_date, p_end_date, p_monthly_rent,
+        p_deposit_amount, p_deposit_currency, IFNULL(p_payment_day, 1), IFNULL(p_auto_renew, 0)
+    )
+    ON DUPLICATE KEY UPDATE
+        start_date       = VALUES(start_date),
+        end_date         = VALUES(end_date),
+        monthly_rent     = VALUES(monthly_rent),
+        deposit_amount   = VALUES(deposit_amount),
+        deposit_currency = VALUES(deposit_currency),
+        payment_day      = VALUES(payment_day),
+        auto_renew       = VALUES(auto_renew);
+
+    SELECT * FROM transaction_rental WHERE transaction_id = p_transaction_id;
+END ;;
+DELIMITER ;
+
+/*!50003 DROP PROCEDURE IF EXISTS `rent_payment_generate` */;
+DELIMITER ;;
+CREATE PROCEDURE `rent_payment_generate`(
+    IN p_transaction_id INT
+)
+BEGIN
+    DECLARE v_start_date   DATE;
+    DECLARE v_end_date     DATE;
+    DECLARE v_monthly_rent DECIMAL(14,2);
+    DECLARE v_currency     CHAR(3);
+    DECLARE v_payment_day  TINYINT;
+    DECLARE v_current      DATE;
+    DECLARE v_due_date     DATE;
+    DECLARE v_period_year  SMALLINT;
+    DECLARE v_period_month TINYINT;
+    DECLARE v_months_total INT DEFAULT 12;
+    DECLARE v_counter      INT DEFAULT 0;
+    DECLARE v_last_day     INT;
+
+    SELECT tr.start_date, tr.end_date, tr.monthly_rent, tr.payment_day, pt.currency
+      INTO v_start_date, v_end_date, v_monthly_rent, v_payment_day, v_currency
+      FROM transaction_rental tr
+      JOIN property_transaction pt ON pt.id = tr.transaction_id
+     WHERE tr.transaction_id = p_transaction_id;
+
+    IF v_end_date IS NOT NULL THEN
+        SET v_months_total = PERIOD_DIFF(
+            DATE_FORMAT(v_end_date, '%Y%m'),
+            DATE_FORMAT(v_start_date, '%Y%m')
+        ) + 1;
+    END IF;
+
+    SET v_current = v_start_date;
+
+    WHILE v_counter < v_months_total DO
+        SET v_period_year  = YEAR(v_current);
+        SET v_period_month = MONTH(v_current);
+        SET v_last_day     = DAY(LAST_DAY(v_current));
+
+        IF v_payment_day > v_last_day THEN
+            SET v_due_date = LAST_DAY(v_current);
+        ELSE
+            SET v_due_date = DATE(CONCAT(
+                v_period_year, '-',
+                LPAD(v_period_month, 2, '0'), '-',
+                LPAD(v_payment_day, 2, '0')
+            ));
+        END IF;
+
+        INSERT IGNORE INTO rent_payment (
+            transaction_id, period_year, period_month,
+            due_date, amount_due, currency, status
+        ) VALUES (
+            p_transaction_id, v_period_year, v_period_month,
+            v_due_date, v_monthly_rent, v_currency, 'pendiente'
+        );
+
+        SET v_current = DATE_ADD(v_current, INTERVAL 1 MONTH);
+        SET v_counter = v_counter + 1;
+    END WHILE;
+
+    SELECT COUNT(*) AS payments_generated
+      FROM rent_payment
+     WHERE transaction_id = p_transaction_id;
+END ;;
+DELIMITER ;
+
+/*!50003 DROP PROCEDURE IF EXISTS `rent_payment_list` */;
+DELIMITER ;;
+CREATE PROCEDURE `rent_payment_list`(
+    IN p_transaction_id INT
+)
+BEGIN
+    UPDATE rent_payment
+       SET status = 'atrasado'
+     WHERE transaction_id = p_transaction_id
+       AND due_date < CURDATE()
+       AND status IN ('pendiente');
+
+    SELECT
+        rp.*,
+        (rp.amount_due - rp.amount_paid + IFNULL(rp.late_fee, 0)) AS balance_due,
+        (
+            SELECT COUNT(*)
+              FROM rent_payment_partiality rpp
+             WHERE rpp.payment_id = rp.id
+        ) AS partialities_count,
+        (
+            SELECT IFNULL(SUM(rpp2.amount), 0)
+              FROM rent_payment_partiality rpp2
+             WHERE rpp2.payment_id = rp.id
+        ) AS partialities_total
+      FROM rent_payment rp
+     WHERE rp.transaction_id = p_transaction_id
+     ORDER BY rp.period_year ASC, rp.period_month ASC;
+END ;;
+DELIMITER ;
+
+/*!50003 DROP PROCEDURE IF EXISTS `rent_payment_update` */;
+/*!50003 DROP PROCEDURE IF EXISTS `rent_payment_partial_list` */;
+/*!50003 DROP PROCEDURE IF EXISTS `rent_payment_partial_add` */;
+DELIMITER ;;
+CREATE PROCEDURE `rent_payment_update`(
+    IN p_payment_id  INT,
+    IN p_amount_paid DECIMAL(14,2),
+    IN p_paid_at     DATETIME,
+    IN p_late_fee    DECIMAL(14,2),
+    IN p_notes       TEXT,
+    IN p_recorded_by INT
+)
+BEGIN
+    DECLARE v_amount_due DECIMAL(14,2);
+    DECLARE v_due_date   DATE;
+    DECLARE v_late_fee   DECIMAL(14,2);
+    DECLARE v_total_due  DECIMAL(14,2);
+    DECLARE v_current_status VARCHAR(20);
+    DECLARE v_status     VARCHAR(20);
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    SELECT amount_due, due_date, IFNULL(late_fee, 0), status
+      INTO v_amount_due, v_due_date, v_late_fee, v_current_status
+      FROM rent_payment
+     WHERE id = p_payment_id
+     FOR UPDATE;
+
+    IF v_amount_due IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Pago no encontrado';
+    END IF;
+
+    IF v_current_status = 'cancelado' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se puede actualizar un pago cancelado';
+    END IF;
+
+    SET v_total_due = v_amount_due + IFNULL(p_late_fee, v_late_fee);
+
+    IF p_amount_paid < 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'amount_paid no puede ser negativo';
+    END IF;
+
+    IF p_amount_paid > v_total_due THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'El pago excede el adeudo del mes. Registra la penalización en late_fee antes de cobrar más.';
+    END IF;
+
+    IF p_amount_paid >= v_total_due THEN
+        SET v_status = 'pagado';
+    ELSEIF p_amount_paid > 0 THEN
+        SET v_status = 'parcial';
+    ELSEIF v_due_date < CURDATE() THEN
+        SET v_status = 'atrasado';
+    ELSE
+        SET v_status = 'pendiente';
+    END IF;
+
+    UPDATE rent_payment
+       SET amount_paid = p_amount_paid,
+           paid_at     = IFNULL(p_paid_at, NOW()),
+           late_fee    = IFNULL(p_late_fee, late_fee),
+           notes       = p_notes,
+           status      = v_status,
+           recorded_by = p_recorded_by
+     WHERE id = p_payment_id;
+
+    COMMIT;
+
+    SELECT
+        rp.*,
+        (rp.amount_due - rp.amount_paid + IFNULL(rp.late_fee, 0)) AS balance_due
+      FROM rent_payment rp
+     WHERE rp.id = p_payment_id;
+END ;;
+DELIMITER ;
+
+DELIMITER ;;
+CREATE PROCEDURE `rent_payment_partial_list`(
+    IN p_payment_id INT
+)
+BEGIN
+    SELECT
+        rpp.id,
+        rpp.payment_id,
+        rpp.amount,
+        rpp.paid_at,
+        rpp.notes,
+        rpp.recorded_by,
+        u.full_name AS recorded_by_name,
+        rpp.created_at
+    FROM rent_payment_partiality rpp
+    LEFT JOIN `user` u ON u.id = rpp.recorded_by
+    WHERE rpp.payment_id = p_payment_id
+    ORDER BY rpp.paid_at ASC, rpp.id ASC;
+END ;;
+DELIMITER ;
+
+DELIMITER ;;
+CREATE PROCEDURE `rent_payment_partial_add`(
+    IN p_payment_id  INT,
+    IN p_amount      DECIMAL(14,2),
+    IN p_paid_at     DATETIME,
+    IN p_late_fee    DECIMAL(14,2),
+    IN p_notes       TEXT,
+    IN p_recorded_by INT
+)
+BEGIN
+    DECLARE v_amount_due DECIMAL(14,2);
+    DECLARE v_amount_paid DECIMAL(14,2);
+    DECLARE v_due_date DATE;
+    DECLARE v_late_fee DECIMAL(14,2);
+    DECLARE v_new_late_fee DECIMAL(14,2);
+    DECLARE v_total_due DECIMAL(14,2);
+    DECLARE v_new_amount_paid DECIMAL(14,2);
+    DECLARE v_new_status VARCHAR(20);
+    DECLARE v_current_status VARCHAR(20);
+    DECLARE v_partial_id INT;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    IF p_amount IS NULL OR p_amount <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'El monto de la parcialidad debe ser mayor a 0';
+    END IF;
+
+    START TRANSACTION;
+
+    SELECT amount_due, amount_paid, due_date, IFNULL(late_fee, 0), status
+      INTO v_amount_due, v_amount_paid, v_due_date, v_late_fee, v_current_status
+      FROM rent_payment
+     WHERE id = p_payment_id
+     FOR UPDATE;
+
+    IF v_amount_due IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Pago no encontrado';
+    END IF;
+
+    IF v_current_status = 'cancelado' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se puede registrar parcialidad en un pago cancelado';
+    END IF;
+
+    SET v_new_late_fee = IFNULL(p_late_fee, v_late_fee);
+    SET v_total_due = v_amount_due - v_amount_paid + v_new_late_fee;
+
+    IF p_amount > v_total_due THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'La parcialidad excede el saldo pendiente del mes';
+    END IF;
+
+    SET v_new_amount_paid = v_amount_paid + p_amount;
+
+    IF v_new_amount_paid >= (v_amount_due + v_new_late_fee) THEN
+        SET v_new_status = 'pagado';
+    ELSEIF v_new_amount_paid > 0 THEN
+        SET v_new_status = 'parcial';
+    ELSEIF v_due_date < CURDATE() THEN
+        SET v_new_status = 'atrasado';
+    ELSE
+        SET v_new_status = 'pendiente';
+    END IF;
+
+    INSERT INTO rent_payment_partiality (
+        payment_id,
+        amount,
+        paid_at,
+        notes,
+        recorded_by
+    ) VALUES (
+        p_payment_id,
+        p_amount,
+        IFNULL(p_paid_at, NOW()),
+        p_notes,
+        p_recorded_by
+    );
+
+    SET v_partial_id = LAST_INSERT_ID();
+
+    UPDATE rent_payment
+       SET amount_paid = v_new_amount_paid,
+           paid_at = IFNULL(p_paid_at, NOW()),
+           late_fee = v_new_late_fee,
+           notes = CASE
+                     WHEN p_notes IS NULL OR p_notes = '' THEN notes
+                     WHEN notes IS NULL OR notes = '' THEN p_notes
+                     ELSE CONCAT(notes, ' | ', p_notes)
+                   END,
+           status = v_new_status,
+           recorded_by = p_recorded_by
+     WHERE id = p_payment_id;
+
+    COMMIT;
+
+    SELECT
+        rp.*,
+        v_partial_id AS partiality_id,
+        p_amount AS partial_amount,
+        (rp.amount_due - rp.amount_paid + IFNULL(rp.late_fee, 0)) AS balance_due
+      FROM rent_payment rp
+     WHERE rp.id = p_payment_id;
+END ;;
+DELIMITER ;
+
+/*!50003 DROP PROCEDURE IF EXISTS `transaction_document_add` */;
+DELIMITER ;;
+CREATE PROCEDURE `transaction_document_add`(
+    IN p_transaction_id   INT,
+    IN p_document_type_id INT,
+    IN p_file_url         VARCHAR(500),
+    IN p_file_name        VARCHAR(255),
+    IN p_notes            TEXT,
+    IN p_uploaded_by      INT
+)
+BEGIN
+    DECLARE v_transaction_type VARCHAR(20);
+    DECLARE v_applicable_to VARCHAR(20);
+
+    SELECT pt.transaction_type
+      INTO v_transaction_type
+      FROM property_transaction pt
+     WHERE pt.id = p_transaction_id
+     LIMIT 1;
+
+    IF v_transaction_type IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Transacción no encontrada';
+    END IF;
+
+    SELECT dt.applicable_to
+      INTO v_applicable_to
+      FROM document_type dt
+     WHERE dt.id = p_document_type_id
+     LIMIT 1;
+
+    IF v_applicable_to IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Tipo de documento no encontrado';
+    END IF;
+
+    IF v_applicable_to <> 'todos' AND v_applicable_to <> v_transaction_type THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'El tipo de documento no aplica al tipo de transacción';
+    END IF;
+
+    INSERT INTO transaction_document (
+        transaction_id, document_type_id, file_url, file_name, notes, uploaded_by
+    ) VALUES (
+        p_transaction_id, p_document_type_id, p_file_url,
+        p_file_name, p_notes, p_uploaded_by
+    );
+
+    SELECT LAST_INSERT_ID() AS transaction_document_id;
+END ;;
+DELIMITER ;
+
+/*!50003 DROP PROCEDURE IF EXISTS `transaction_document_list` */;
+DELIMITER ;;
+CREATE PROCEDURE `transaction_document_list`(
+    IN p_transaction_id INT
+)
+BEGIN
+    SELECT
+        td.id,
+        td.transaction_id,
+        td.document_type_id,
+        dt.name       AS document_type_name,
+        dt.applicable_to,
+        td.file_url,
+        td.file_name,
+        td.notes,
+        td.uploaded_by,
+        u.full_name   AS uploaded_by_name,
+        td.uploaded_at
+      FROM transaction_document td
+      LEFT JOIN document_type dt ON dt.id = td.document_type_id
+      LEFT JOIN `user` u         ON u.id  = td.uploaded_by
+     WHERE td.transaction_id = p_transaction_id
+     ORDER BY td.uploaded_at DESC;
+END ;;
+DELIMITER ;
+
+/*!50003 DROP PROCEDURE IF EXISTS `transaction_document_delete` */;
+DELIMITER ;;
+CREATE PROCEDURE `transaction_document_delete`(
+    IN p_document_id INT
+)
+BEGIN
+    DECLARE v_file_url VARCHAR(500);
+
+    SELECT file_url INTO v_file_url
+      FROM transaction_document
+     WHERE id = p_document_id;
+
+    DELETE FROM transaction_document WHERE id = p_document_id;
+
+    SELECT ROW_COUNT() AS deleted, v_file_url AS file_url;
+END ;;
+DELIMITER ;
 
 -- Dump completed on 2026-04-07 17:53:02

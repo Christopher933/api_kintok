@@ -19,6 +19,9 @@ exports.listFeatured = async (query) => {
 
 exports.getDetail = async (id) => {
     const [result] = await pool.query("CALL property_get_detail(?)", [id]);
+    if (!result?.[0]?.[0]) {
+        throw { status: 404, message: "Propiedad no encontrada" };
+    }
     return {
         property: result[0][0],
         industrial: result[1][0] || null,
@@ -27,6 +30,8 @@ exports.getDetail = async (id) => {
         amenities: result[4],
         images: result[5],
         agents: result[6],
+        active_transaction: result[7][0] || null,
+        current_payment: result[8][0] || null,
     };
 };
 
@@ -66,6 +71,9 @@ exports.search = async (body) => {
         // Pagination
         page_number,
         page_size,
+        // Status filters (admin)
+        publication_status,
+        business_status,
     } = body;
 
     // Convert amenities array to comma-separated string for the SP
@@ -74,7 +82,7 @@ exports.search = async (body) => {
         : null;
 
     const [result] = await pool.query(
-        "CALL property_search(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "CALL property_search(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
             property_type_id || null,
             operation_id || null,
@@ -99,6 +107,8 @@ exports.search = async (body) => {
             amenitiesStr,
             parseInt(page_number) || 1,
             parseInt(page_size) || 10,
+            publication_status || null,
+            business_status || null,
         ]
     );
     return {
@@ -157,29 +167,37 @@ exports.uploadImages = (req) => {
     return new Promise((resolve, reject) => {
         uploadMulti(req, null, async (err) => {
             if (err) return reject(err);
-            if (!req.files || req.files.length === 0) return reject(new Error("No files uploaded"));
+            try {
+                if (!req.files || req.files.length === 0) {
+                    return reject({ status: 400, message: "No files uploaded" });
+                }
 
-            let property_id = req.body.property_id;
-            if (!property_id || property_id === "undefined") return reject(new Error("property_id is required and must be valid"));
-            property_id = Number(property_id);
-            if (isNaN(property_id)) return reject(new Error("property_id must be a number"));
+                let property_id = req.body.property_id;
+                if (!property_id || property_id === "undefined") {
+                    return reject({ status: 400, message: "property_id is required and must be valid" });
+                }
+                property_id = Number(property_id);
+                if (isNaN(property_id)) return reject({ status: 400, message: "property_id must be a number" });
 
-            const savedImages = [];
-            for (const file of req.files) {
-                const webpFilename = await processToWebP(file.path, uploadDir);
-                const baseUrl = process.env.API || 'http://localhost:3005/api';
-                const imageUrl = `${baseUrl}/public/uploads/${webpFilename}`;
+                const savedImages = [];
+                const apiBase = (process.env.API || "http://localhost:3005/api").replace(/\/+$/, "");
+                for (const file of req.files) {
+                    const webpFilename = await processToWebP(file.path, uploadDir);
+                    const imageUrl = `${apiBase}/public/uploads/${webpFilename}`;
 
-                // Guardar en DB usando el nuevo SP
-                const [result] = await pool.query(
-                    "CALL property_image_add(?, ?, ?)",
-                    [property_id, imageUrl, 0] // 0 para que el SP calcule el siguiente orden
-                );
+                    // Guardar en DB usando el nuevo SP
+                    const [result] = await pool.query(
+                        "CALL property_image_add(?, ?, ?)",
+                        [property_id, imageUrl, 0] // 0 para que el SP calcule el siguiente orden
+                    );
 
-                savedImages.push({ id: result[0][0].property_image_id, url: imageUrl });
+                    savedImages.push({ id: result[0][0].property_image_id, url: imageUrl });
+                }
+
+                resolve({ message: "Images uploaded successfully", images: savedImages });
+            } catch (error) {
+                reject(error);
             }
-
-            resolve({ message: "Images uploaded successfully", images: savedImages });
         });
     });
 };
@@ -207,12 +225,12 @@ exports.deleteImage = async (id) => {
     return { message: "Image deleted successfully" };
 };
 
-exports.updateStatus = async (body) => {
+exports.updateStatus = async (body, actorUserId = null) => {
     const params = [
         body.property_id,
         body.publication_status_id || null,
         body.business_status_id || null,
-        body.changed_by || null,
+        actorUserId,
         body.change_notes || null,
     ];
     await pool.query("CALL property_status_update(?, ?, ?, ?, ?)", params);

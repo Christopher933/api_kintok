@@ -4,7 +4,6 @@ const bcrypt = require("bcrypt");
 const tokenHelper = require("../../_shared/token");
 
 exports.login = async (body) => {
-    console.log(body);
     const { email, password } = body;
 
     if (!email || !password) {
@@ -31,12 +30,34 @@ exports.login = async (body) => {
     // 3. Verify password
     const cleanPassword = password.toString().trim();
     const match = await bcrypt.compare(cleanPassword, user.password_hash.trim());
-    console.log("MATCH:", match);
-    console.log("HASH: '" + user.password_hash + "'");
-    console.log("PASS: '" + cleanPassword + "'");
     if (match) {
         // 4. Update success
         await pool.query("CALL user_login_success(?)", [user.id]);
+
+        let module_permissions = {};
+        try {
+            const [permRows] = await pool.query(
+                `SELECT pm.module_key, rmp.can_view, rmp.can_create, rmp.can_update, rmp.can_delete
+                   FROM role_module_permission rmp
+                   INNER JOIN permission_module pm ON pm.id = rmp.module_id
+                  WHERE rmp.role_id = ?`,
+                [user.role_id]
+            );
+            if (Array.isArray(permRows)) {
+                for (const row of permRows) {
+                    const key = String(row.module_key || "").trim();
+                    if (!key) continue;
+                    module_permissions[key] = {
+                        view: Number(row.can_view || 0),
+                        create: Number(row.can_create || 0),
+                        update: Number(row.can_update || 0),
+                        delete: Number(row.can_delete || 0),
+                    };
+                }
+            }
+        } catch (_e) {
+            module_permissions = {};
+        }
 
         // 5. Generate token
         const token = tokenHelper.generateToken({
@@ -45,6 +66,7 @@ exports.login = async (body) => {
             email: user.email,
             role_id: user.role_id,
             role_name: user.role_name,
+            permissions: module_permissions,
         });
 
         // Remove hash from response
@@ -53,6 +75,7 @@ exports.login = async (body) => {
         return {
             message: "Login successful",
             user,
+            permissions: module_permissions,
             token,
         };
     } else {

@@ -1,36 +1,157 @@
 const { pool } = require("../../_shared/bd");
 
-exports.upsert = async (body) => {
+const mapDbError = (error) => {
+    if (error && error.sqlState === "45000") {
+        const message = error.sqlMessage || error.message || "Error de negocio";
+        if (String(message).toLowerCase().includes("no encontrado")) {
+            return { status: 404, message };
+        }
+        return { status: 400, message };
+    }
+    return error;
+};
+
+exports.upsert = async (body, actorUserId = null) => {
+    if (!String(body.full_name || "").trim()) {
+        throw { status: 400, message: "full_name es requerido" };
+    }
+
     const params = [
         body.id || null,
-        body.full_name,
+        String(body.full_name).trim(),
         body.email || null,
         body.phone || null,
         body.customer_type || null,
         body.notes || null,
+        body.status ? String(body.status).trim().toLowerCase() : null,
+        body.source || null,
+        body.assigned_agent_id || null,
+        body.last_contact_at || null,
+        body.next_follow_up_at || null,
+        body.rfc || null,
+        body.business_name || null,
+        body.billing_email || null,
+        body.address_line || null,
+        actorUserId || null,
     ];
-    const [result] = await pool.query("CALL customer_upsert(?, ?, ?, ?, ?, ?)", params);
-    return result[0][0];
+    try {
+        const [result] = await pool.query("CALL customer_upsert(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", params);
+        return result[0][0];
+    } catch (error) {
+        throw mapDbError(error);
+    }
 };
 
 exports.list = async (query) => {
-    const search_text = query.search || query.search_text || null;
-    const page = parseInt(query.page) || 1;
-    const limit = parseInt(query.limit) || 10;
+    const searchRaw = String(query.search ?? query.search_text ?? "").trim();
+    const searchLower = searchRaw.toLowerCase();
+    const search_text = (
+        searchLower === "" ||
+        searchLower === "undefined" ||
+        searchLower === "null"
+    ) ? null : searchRaw;
+    const page = parseInt(query.page || query.page_number, 10) || 1;
+    const limit = parseInt(query.limit || query.page_size, 10) || 10;
+    const statusRaw = String(query.status ?? "").trim().toLowerCase();
+    const status = (
+        statusRaw === "" ||
+        statusRaw === "undefined" ||
+        statusRaw === "null"
+    ) ? null : statusRaw;
+    const customerTypeRaw = String(query.customer_type ?? "").trim();
+    const customerTypeLower = customerTypeRaw.toLowerCase();
+    const customer_type = (
+        customerTypeLower === "" ||
+        customerTypeLower === "undefined" ||
+        customerTypeLower === "null"
+    ) ? null : customerTypeRaw;
+    const assignedAgentRaw = String(query.assigned_agent_id ?? "").trim().toLowerCase();
+    const assignedAgentNumber = Number(query.assigned_agent_id);
+    const assigned_agent_id = (
+        assignedAgentRaw === "" ||
+        assignedAgentRaw === "undefined" ||
+        assignedAgentRaw === "null" ||
+        Number.isNaN(assignedAgentNumber)
+    ) ? null : assignedAgentNumber;
+    try {
+        const [result] = await pool.query(
+            "CALL customer_list(?, ?, ?, ?, ?, ?)",
+            [search_text, status || null, customer_type || null, assigned_agent_id || null, page, limit]
+        );
 
-    const [result] = await pool.query("CALL customer_list(?, ?, ?)", [search_text, page, limit]);
+        if (result.length > 1) {
+            return {
+                meta: result[0][0],
+                data: result[1],
+            };
+        }
 
-    // Si el SP devuelve dos conjuntos (metadatos y datos)
-    if (result.length > 1) {
         return {
-            meta: result[0][0],
-            data: result[1]
+            meta: { total_records: result[0].length, page_number: page, page_size: limit, total_pages: 1 },
+            data: result[0],
         };
+    } catch (error) {
+        throw mapDbError(error);
     }
+};
 
-    // Fallback por si aún no han actualizado el SP
-    return {
-        meta: { total_records: result[0].length, page_number: page, page_size: limit, total_pages: 1 },
-        data: result[0]
-    };
+exports.detail = async (customerId) => {
+    const id = Number(customerId);
+    if (!id) {
+        throw { status: 400, message: "customer_id inválido" };
+    }
+    try {
+        const [result] = await pool.query("CALL customer_detail(?)", [id]);
+        const customer = result?.[0]?.[0];
+        if (!customer) {
+            throw { status: 404, message: "Cliente no encontrado" };
+        }
+        return {
+            customer,
+            leads: result?.[1] || [],
+            transactions: result?.[2] || [],
+            payments: result?.[3] || [],
+            notes: result?.[4] || [],
+        };
+    } catch (error) {
+        throw mapDbError(error);
+    }
+};
+
+exports.notesList = async (customerId) => {
+    const id = Number(customerId);
+    if (!id) {
+        throw { status: 400, message: "customer_id inválido" };
+    }
+    try {
+        const [result] = await pool.query("CALL customer_note_list(?)", [id]);
+        return {
+            customer_id: id,
+            data: result?.[0] || [],
+        };
+    } catch (error) {
+        throw mapDbError(error);
+    }
+};
+
+exports.notesAdd = async (body, actorUserId = null) => {
+    const customer_id = Number(body.customer_id);
+    const noteRaw = body.note != null ? body.note : body.notes;
+    const note = String(noteRaw || "").trim();
+    if (!customer_id) {
+        throw { status: 400, message: "customer_id es requerido" };
+    }
+    if (!note) {
+        throw { status: 400, message: "note es requerida" };
+    }
+    try {
+        const [result] = await pool.query("CALL customer_note_add(?, ?, ?)", [
+            customer_id,
+            note,
+            actorUserId || null,
+        ]);
+        return result?.[0]?.[0] || null;
+    } catch (error) {
+        throw mapDbError(error);
+    }
 };

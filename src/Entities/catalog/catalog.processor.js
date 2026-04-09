@@ -59,3 +59,15 @@ exports.businessStatusList = async () => {
     const [result] = await pool.query("SELECT * FROM property_business_status ORDER BY name ASC");
     return result;
 };
+
+exports.documentTypeList = async (applicable_to) => {
+    if (applicable_to && applicable_to !== "todos") {
+        const [result] = await pool.query(
+            "SELECT * FROM document_type WHERE applicable_to = ? OR applicable_to = 'todos' ORDER BY name ASC",
+            [applicable_to]
+        );
+        return result;
+    }
+    const [result] = await pool.query("SELECT * FROM document_type ORDER BY name ASC");
+    return result;
+};
