@@ -36,6 +36,15 @@ exports.search = async (req, res) => {
     }
 };
 
+exports.listOverdue = async (req, res) => {
+    try {
+        const data = await processor.listOverdue(req.query);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(error.status || 500).send({ message: error.message });
+    }
+};
+
 exports.upsert = async (req, res) => {
     try {
         const data = await processor.upsert(req.body);
@@ -75,6 +84,15 @@ exports.deleteImage = async (req, res) => {
 exports.updateStatus = async (req, res) => {
     try {
         const data = await processor.updateStatus(req.body, req.user?.id || null);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(error.status || 500).send({ message: error.message });
+    }
+};
+
+exports.deleteProperty = async (req, res) => {
+    try {
+        const data = await processor.deleteProperty(req.params.id);
         res.status(200).send(data);
     } catch (error) {
         res.status(error.status || 500).send({ message: error.message });

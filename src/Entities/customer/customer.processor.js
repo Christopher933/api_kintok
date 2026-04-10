@@ -29,13 +29,30 @@ exports.upsert = async (body, actorUserId = null) => {
         body.last_contact_at || null,
         body.next_follow_up_at || null,
         body.rfc || null,
+        body.curp || null,
         body.business_name || null,
+        body.razon_social || null,
+        body.tipo_persona || null,
         body.billing_email || null,
         body.address_line || null,
+        body.address_street || null,
+        body.address_number || null,
+        body.address_neighborhood || null,
+        body.address_city || null,
+        body.address_state || null,
+        body.address_zip || null,
+        body.address_country || null,
+        body.preferred_currency || null,
+        body.interest_type || null,
+        body.interest_zones || null,
+        body.interest_property_types || null,
         actorUserId || null,
     ];
     try {
-        const [result] = await pool.query("CALL customer_upsert(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", params);
+        const [result] = await pool.query(
+            "CALL customer_upsert(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            params
+        );
         return result[0][0];
     } catch (error) {
         throw mapDbError(error);

@@ -18,6 +18,15 @@ exports.list = async (req, res) => {
     }
 };
 
+exports.detail = async (req, res) => {
+    try {
+        const data = await processor.detail(req.params.lead_contact_id);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(error.status || 500).send({ message: error.message });
+    }
+};
+
 exports.statusCatalog = async (_req, res) => {
     try {
         const data = await processor.statusCatalog();

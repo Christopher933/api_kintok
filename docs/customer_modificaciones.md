@@ -25,9 +25,23 @@ Tabla `customer`:
 - `last_contact_at`
 - `next_follow_up_at`
 - `rfc`
+- `curp`
 - `business_name`
+- `razon_social`
+- `tipo_persona` (`fisica|moral`)
 - `billing_email`
 - `address_line`
+- `address_street`
+- `address_number`
+- `address_neighborhood`
+- `address_city`
+- `address_state`
+- `address_zip`
+- `address_country`
+- `preferred_currency` (`MXN|USD`)
+- `interest_type` (`compra|renta|venta`)
+- `interest_zones`
+- `interest_property_types`
 - `created_by`
 - `updated_by`
 
@@ -95,9 +109,23 @@ Body soportado:
   "last_contact_at": "2026-04-08 10:00:00",
   "next_follow_up_at": "2026-04-12 10:00:00",
   "rfc": "MEMC900101ABC",
+  "curp": "MEMC900101HBCNRS09",
   "business_name": null,
+  "razon_social": null,
+  "tipo_persona": "fisica",
   "billing_email": "carlos@mail.com",
-  "address_line": "Tijuana, Baja California"
+  "address_line": "Tijuana, Baja California",
+  "address_street": "Blvd. Agua Caliente",
+  "address_number": "1234",
+  "address_neighborhood": "Madero",
+  "address_city": "Tijuana",
+  "address_state": "Baja California",
+  "address_zip": "22044",
+  "address_country": "Mexico",
+  "preferred_currency": "MXN",
+  "interest_type": "compra",
+  "interest_zones": "Otay, Zona Rio, Playas",
+  "interest_property_types": "residencial, industrial"
 }
 ```
 
@@ -155,3 +183,13 @@ Script:
 
 - `scripts/mysql_apply_customer_notes_history.sql`
 - Resultado esperado: `customer_notes_history_applied`
+
+## 8) Extensión de perfil fiscal/comercial/dirección
+
+Script:
+
+- `scripts/mysql_apply_customer_extended_profile.sql`
+
+Resultado esperado:
+
+- `customer_extended_profile_applied`

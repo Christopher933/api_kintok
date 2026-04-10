@@ -68,6 +68,57 @@ exports.list = async (query) => {
     };
 };
 
+exports.detail = async (lead_contact_id) => {
+    const id = Number(lead_contact_id);
+    if (!id || Number.isNaN(id)) {
+        throw { status: 400, message: "lead_contact_id inválido" };
+    }
+
+    const [rows] = await pool.query(
+        `SELECT
+            l.id,
+            l.property_id,
+            p.title AS property_title,
+            l.name,
+            l.email,
+            l.phone,
+            l.comments,
+            l.status,
+            l.customer_id,
+            c.full_name AS customer_name,
+            c.email AS customer_email,
+            c.phone AS customer_phone,
+            IF(l.customer_id IS NULL, 0, 1) AS is_converted,
+            l.changed_by,
+            uc.full_name AS changed_by_name,
+            l.converted_by,
+            uv.full_name AS converted_by_name,
+            l.converted_at,
+            l.conversion_notes,
+            l.created_at,
+            l.updated_at
+        FROM lead_contact l
+        LEFT JOIN property p ON p.id = l.property_id
+        LEFT JOIN customer c ON c.id = l.customer_id
+        LEFT JOIN \`user\` uc ON uc.id = l.changed_by
+        LEFT JOIN \`user\` uv ON uv.id = l.converted_by
+        WHERE l.id = ?
+        LIMIT 1`,
+        [id]
+    );
+
+    if (!rows.length) {
+        throw { status: 404, message: "Lead no encontrado" };
+    }
+
+    const [notesResult] = await pool.query("CALL lead_contact_notes_list(?)", [id]);
+
+    return {
+        lead: rows[0],
+        notes: notesResult?.[0] || [],
+    };
+};
+
 exports.statusCatalog = async () => {
     return {
         statuses: ALLOWED_LEAD_STATUS.map((value) => ({ value, label: value })),

@@ -10,6 +10,7 @@ router.post("/register", controller.register);
 router.use(verifyAccess);
 
 router.get("/list", authorizeModuleAction("lead", "view"), controller.list);
+router.get("/detail/:lead_contact_id", authorizeModuleAction("lead", "view"), controller.detail);
 router.get("/status/catalog", authorizeModuleAction("lead", "view"), controller.statusCatalog);
 router.put("/status", authorizeModuleAction("lead", "update"), controller.statusUpdate);
 router.get("/notes", authorizeModuleAction("lead", "view"), controller.notesList);

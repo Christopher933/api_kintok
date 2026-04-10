@@ -5,6 +5,7 @@ const { verifyAccess, authorizeModuleAction } = require("../../_shared/token");
 
 router.get("/featured", controller.listFeatured);
 router.get("/detail/:id", controller.getDetail);
+router.get("/overdue/list", verifyAccess, authorizeModuleAction("property", "view"), controller.listOverdue);
 router.post("/visit", controller.visitIncrement);
 router.post("/search", controller.search);
 router.post("/upsert", verifyAccess, authorizeModuleAction("property", "create"), controller.upsert);
@@ -14,5 +15,6 @@ router.post("/image/upload", verifyAccess, authorizeModuleAction("property", "up
 router.post("/image/sort", verifyAccess, authorizeModuleAction("property", "update"), controller.sortImages);
 router.delete("/image/:id", verifyAccess, authorizeModuleAction("property", "delete"), controller.deleteImage);
 router.post("/status/update", verifyAccess, authorizeModuleAction("property", "update"), controller.updateStatus);
+router.delete("/:id", verifyAccess, authorizeModuleAction("property", "delete"), controller.deleteProperty);
 
 module.exports = router;

@@ -2,6 +2,7 @@ const db = require("../../_shared/bd");
 const pool = db.pool;
 const { uploadMulti, uploadDir } = require("../../_shared/multer_multi");
 const { processToWebP } = require("../../_shared/image_processor");
+const { useS3, buildS3Key, uploadLocalFile, deleteByKey, keyFromUrl } = require("../../_shared/s3_storage");
 const path = require("path");
 const fs = require("fs");
 
@@ -15,6 +16,18 @@ exports.listFeatured = async (query) => {
         meta: result[0][0],
         data: result[1],
     };
+};
+
+const normalizeOverdueStatus = (value) => {
+    if (value === undefined || value === null) return null;
+    const normalized = String(value).trim().toLowerCase();
+    if (!normalized || normalized === "undefined" || normalized === "null" || normalized === "todos") {
+        return null;
+    }
+    if (!["atrasado", "parcial"].includes(normalized)) {
+        throw { status: 400, message: "status inválido. Usa: atrasado, parcial o todos" };
+    }
+    return normalized;
 };
 
 exports.getDetail = async (id) => {
@@ -183,7 +196,27 @@ exports.uploadImages = (req) => {
                 const apiBase = (process.env.API || "http://localhost:3005/api").replace(/\/+$/, "");
                 for (const file of req.files) {
                     const webpFilename = await processToWebP(file.path, uploadDir);
-                    const imageUrl = `${apiBase}/public/uploads/${webpFilename}`;
+                    const webpPath = path.join(uploadDir, webpFilename);
+                    let imageUrl = `${apiBase}/public/uploads/${webpFilename}`;
+
+                    if (useS3) {
+                        const key = buildS3Key({
+                            folder: "property-photos",
+                            entityType: "property",
+                            entityId: property_id,
+                            fileType: "photo",
+                            reference: `prop${property_id}`,
+                            originalName: webpFilename,
+                            contentType: "image/webp",
+                        });
+                        const uploaded = await uploadLocalFile({
+                            localPath: webpPath,
+                            key,
+                            contentType: "image/webp",
+                        });
+                        imageUrl = uploaded.url;
+                        if (fs.existsSync(webpPath)) fs.unlinkSync(webpPath);
+                    }
 
                     // Guardar en DB usando el nuevo SP
                     const [result] = await pool.query(
@@ -213,11 +246,17 @@ exports.deleteImage = async (id) => {
     const [rows] = await pool.query("SELECT image_url FROM property_image WHERE id = ?", [id]);
     if (rows.length > 0) {
         const imageUrl = rows[0].image_url;
-        const filename = path.basename(imageUrl);
-        const filePath = path.join(uploadDir, filename);
-
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
+        if (useS3) {
+            const s3Key = keyFromUrl(imageUrl);
+            if (s3Key) {
+                await deleteByKey(s3Key);
+            }
+        } else {
+            const filename = path.basename(imageUrl);
+            const filePath = path.join(uploadDir, filename);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
         }
     }
 
@@ -235,4 +274,108 @@ exports.updateStatus = async (body, actorUserId = null) => {
     ];
     await pool.query("CALL property_status_update(?, ?, ?, ?, ?)", params);
     return { message: "Status updated successfully" };
+};
+
+exports.listOverdue = async (query) => {
+    const status = normalizeOverdueStatus(query.status);
+    const normalizeOptionalInt = (value) => {
+        if (value === undefined || value === null) return null;
+        const asText = String(value).trim().toLowerCase();
+        if (!asText || asText === "undefined" || asText === "null") return null;
+        const numberValue = Number(value);
+        return Number.isNaN(numberValue) ? null : numberValue;
+    };
+    const searchText = (() => {
+        if (query.search_text === undefined || query.search_text === null) return null;
+        const value = String(query.search_text).trim();
+        if (!value || value === "undefined" || value === "null") return null;
+        return value;
+    })();
+
+    const [result] = await pool.query(
+        "CALL property_overdue_list(?, ?, ?, ?, ?, ?)",
+        [
+            searchText,
+            normalizeOptionalInt(query.city_id),
+            normalizeOptionalInt(query.zone_id),
+            status,
+            parseInt(query.page_number, 10) || 1,
+            parseInt(query.page_size, 10) || 15,
+        ]
+    );
+
+    return {
+        meta: result?.[0]?.[0] || { total_records: 0, page_number: 1, page_size: 15, total_pages: 0 },
+        data: result?.[1] || [],
+    };
+};
+
+exports.deleteProperty = async (id) => {
+    const propertyId = Number(id);
+    if (!propertyId || Number.isNaN(propertyId)) {
+        throw { status: 400, message: "property_id inválido" };
+    }
+
+    const conn = await pool.getConnection();
+    let imageUrls = [];
+    try {
+        await conn.beginTransaction();
+
+        const [existsRows] = await conn.query("SELECT id FROM property WHERE id = ?", [propertyId]);
+        if (!existsRows.length) {
+            throw { status: 404, message: "Propiedad no encontrada" };
+        }
+
+        const [txRows] = await conn.query(
+            "SELECT COUNT(*) AS total FROM property_transaction WHERE property_id = ?",
+            [propertyId]
+        );
+        if (Number(txRows[0]?.total || 0) > 0) {
+            throw {
+                status: 400,
+                message: "No se puede eliminar la propiedad porque tiene transacciones asociadas",
+            };
+        }
+
+        const [imgRows] = await conn.query("SELECT image_url FROM property_image WHERE property_id = ?", [propertyId]);
+        imageUrls = imgRows.map((r) => r.image_url).filter(Boolean);
+
+        await conn.query("DELETE FROM property WHERE id = ?", [propertyId]);
+        await conn.commit();
+    } catch (error) {
+        await conn.rollback();
+        throw error;
+    } finally {
+        conn.release();
+    }
+
+    // Limpieza física despues del commit para no romper integridad de DB si falla S3/local.
+    const cleanupErrors = [];
+    for (const imageUrl of imageUrls) {
+        try {
+            if (useS3) {
+                const s3Key = keyFromUrl(imageUrl);
+                if (s3Key) {
+                    await deleteByKey(s3Key);
+                }
+            } else {
+                const filename = path.basename(imageUrl);
+                const filePath = path.join(uploadDir, filename);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+            }
+        } catch (cleanupError) {
+            cleanupErrors.push({
+                image_url: imageUrl,
+                message: cleanupError?.message || "No se pudo eliminar archivo",
+            });
+        }
+    }
+
+    return {
+        message: "Propiedad eliminada correctamente",
+        property_id: propertyId,
+        cleanup_warnings: cleanupErrors,
+    };
 };

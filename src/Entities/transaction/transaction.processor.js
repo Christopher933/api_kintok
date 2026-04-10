@@ -2,6 +2,7 @@ const path = require("path");
 const fs = require("fs");
 const { pool } = require("../../_shared/bd");
 const { uploadDoc, uploadDir } = require("../../_shared/multer_docs");
+const { useS3, buildS3Key, uploadLocalFile, deleteByKey, keyFromUrl } = require("../../_shared/s3_storage");
 
 // ── Transacciones base ────────────────────────────────────────────────────────
 
@@ -317,7 +318,31 @@ exports.uploadDocument = (transaction_id, req, actorUserId = null) => {
                 if (!document_type_id) return reject({ status: 400, message: "document_type_id es requerido" });
 
                 const apiBase = (process.env.API || "http://localhost:3005/api").replace(/\/+$/, "");
-                const fileUrl = `${apiBase}/public/uploads/docs/${req.file.filename}`;
+                let fileUrl = `${apiBase}/public/uploads/docs/${req.file.filename}`;
+
+                if (useS3) {
+                    const [txRows] = await pool.query(
+                        "SELECT customer_id FROM property_transaction WHERE id = ? LIMIT 1",
+                        [Number(transaction_id)]
+                    );
+                    const customerIdRef = txRows?.[0]?.customer_id ? `cust${txRows[0].customer_id}` : "custna";
+                    const key = buildS3Key({
+                        folder: "transaction-documents",
+                        entityType: "transaction",
+                        entityId: Number(transaction_id),
+                        fileType: "document",
+                        reference: customerIdRef,
+                        originalName: req.file.originalname || req.file.filename,
+                        contentType: req.file.mimetype,
+                    });
+                    const uploaded = await uploadLocalFile({
+                        localPath: req.file.path,
+                        key,
+                        contentType: req.file.mimetype,
+                    });
+                    fileUrl = uploaded.url;
+                    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+                }
 
                 const [result] = await pool.query(
                     "CALL transaction_document_add(?, ?, ?, ?, ?, ?)",
@@ -350,9 +375,14 @@ exports.deleteDocument = async (document_id) => {
 
     if (row.deleted > 0 && row.file_url) {
         try {
-            const filename = path.basename(row.file_url);
-            const filePath = path.join(uploadDir, filename);
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            if (useS3) {
+                const s3Key = keyFromUrl(row.file_url);
+                if (s3Key) await deleteByKey(s3Key);
+            } else {
+                const filename = path.basename(row.file_url);
+                const filePath = path.join(uploadDir, filename);
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            }
         } catch (_) {
             // Si falla el borrado físico no interrumpimos la respuesta
         }
