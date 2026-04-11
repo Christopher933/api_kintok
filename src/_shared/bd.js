@@ -1,7 +1,10 @@
 const mysql = require('mysql2/promise');
 
+const dbPort = Number(process.env.DB_PORT || 3306);
+
 const createPool = mysql.createPool({
     host: process.env.HOST,
+    port: Number.isNaN(dbPort) ? 3306 : dbPort,
     user: process.env.USER_DB,
     database: process.env.DB,
     password: process.env.PASS_DB,

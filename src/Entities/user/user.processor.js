@@ -21,6 +21,40 @@ const normalizeMaybeNull = (value) => {
 
 const isSuperAdminActor = (actorUser) => String(actorUser?.role_name || "").toLowerCase() === "super_admin";
 
+const normalizeUsername = (value) => {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) return "";
+  const normalized = raw
+    .replace(/[^a-z0-9._-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^[_\-.]+|[_\-.]+$/g, "");
+  return normalized.slice(0, 100);
+};
+
+const buildUsernameBase = ({ email, full_name }) => {
+  const fromEmail = normalizeUsername(String(email || "").split("@")[0]);
+  if (fromEmail) return fromEmail;
+  const fromName = normalizeUsername(String(full_name || "").replace(/\s+/g, "_"));
+  if (fromName) return fromName;
+  return `user_${Date.now()}`;
+};
+
+const resolveUniqueUsername = async (conn, preferredBase, excludeId = null) => {
+  const base = normalizeUsername(preferredBase) || `user_${Date.now()}`;
+  let candidate = base;
+  let index = 1;
+
+  while (true) {
+    const [rows] = await conn.query(
+      "SELECT id FROM `user` WHERE username = ? AND (? IS NULL OR id <> ?) LIMIT 1",
+      [candidate, excludeId, excludeId]
+    );
+    if (!rows.length) return candidate;
+    candidate = `${base}_${index}`;
+    index += 1;
+  }
+};
+
 exports.list = async (query, actorUser = null) => {
   const search = normalizeMaybeNull(query.search ?? query.search_text);
   const roleIdRaw = normalizeMaybeNull(query.role_id);
@@ -90,7 +124,7 @@ exports.detail = async (userId, actorUser = null) => {
 
 exports.upsert = async (body, actorUser = null) => {
   const id = body.id ? Number(body.id) : null;
-  const username = String(body.username || "").trim();
+  const usernameInput = normalizeUsername(body.username);
   const full_name = String(body.full_name || "").trim();
   const email = String(body.email || "").trim().toLowerCase();
   const role_id = Number(body.role_id || 0);
@@ -99,8 +133,8 @@ exports.upsert = async (body, actorUser = null) => {
   const actorUserId = Number(actorUser?.id || 0) || null;
   const actorIsSuperAdmin = isSuperAdminActor(actorUser);
 
-  if (!username || !full_name || !email || !role_id) {
-    throw { status: 400, message: "username, full_name, email y role_id son requeridos" };
+  if (!full_name || !email || !role_id) {
+    throw { status: 400, message: "full_name, email y role_id son requeridos" };
   }
 
   if (!id && (!password || password.length < 8)) {
@@ -116,12 +150,7 @@ exports.upsert = async (body, actorUser = null) => {
       [email, id, id]
     );
     if (existingByEmail.length) throw { status: 400, message: "Ya existe un usuario con ese email" };
-
-    const [existingByUsername] = await conn.query(
-      "SELECT id FROM `user` WHERE username = ? AND (? IS NULL OR id <> ?) LIMIT 1",
-      [username, id, id]
-    );
-    if (existingByUsername.length) throw { status: 400, message: "Ya existe un usuario con ese username" };
+    let usernameToSave = usernameInput;
 
     const [targetRoleRows] = await conn.query("SELECT id, name FROM role WHERE id = ? LIMIT 1", [role_id]);
     if (!targetRoleRows.length) throw { status: 400, message: "role_id inválido" };
@@ -130,9 +159,10 @@ exports.upsert = async (body, actorUser = null) => {
       throw { status: 403, message: "Solo super_admin puede asignar el rol super_admin" };
     }
 
+    let targetUserCurrentUsername = null;
     if (id) {
       const [targetUserRows] = await conn.query(
-        `SELECT r.name AS role_name
+        `SELECT u.username, r.name AS role_name
            FROM \`user\` u
            INNER JOIN role r ON r.id = u.role_id
           WHERE u.id = ?
@@ -141,20 +171,39 @@ exports.upsert = async (body, actorUser = null) => {
       );
       if (!targetUserRows.length) throw { status: 404, message: "Usuario no encontrado" };
       const targetUserRoleName = String(targetUserRows[0].role_name || "").toLowerCase();
+      targetUserCurrentUsername = String(targetUserRows[0].username || "").trim();
       if (targetUserRoleName === "super_admin" && !actorIsSuperAdmin) {
         throw { status: 403, message: "Solo super_admin puede modificar usuarios super_admin" };
       }
     }
 
     if (!id) {
+      if (!usernameToSave) {
+        usernameToSave = buildUsernameBase({ email, full_name });
+      }
+      usernameToSave = await resolveUniqueUsername(conn, usernameToSave, null);
+
       const password_hash = await bcrypt.hash(password, 10);
       const [insertRes] = await conn.query(
         `INSERT INTO \`user\` (username, password_hash, full_name, email, role_id, is_active, failed_login_attempts, locked_until, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, 0, NULL, NOW(), NOW())`,
-        [username, password_hash, full_name, email, role_id, is_active]
+        [usernameToSave, password_hash, full_name, email, role_id, is_active]
       );
       await conn.commit();
       return { user_id: insertRes.insertId, action: "created" };
+    }
+
+    // En update, si no envían username se conserva el actual.
+    if (!usernameToSave) {
+      usernameToSave = targetUserCurrentUsername || buildUsernameBase({ email, full_name });
+    }
+
+    if (usernameInput) {
+      const [existingByUsername] = await conn.query(
+        "SELECT id FROM `user` WHERE username = ? AND (? IS NULL OR id <> ?) LIMIT 1",
+        [usernameToSave, id, id]
+      );
+      if (existingByUsername.length) throw { status: 400, message: "Ya existe un usuario con ese username" };
     }
 
     const [updateRes] = await conn.query(
@@ -168,7 +217,7 @@ exports.upsert = async (body, actorUser = null) => {
               failed_login_attempts = CASE WHEN ? = 1 THEN 0 ELSE failed_login_attempts END,
               locked_until = CASE WHEN ? = 1 THEN NULL ELSE locked_until END
         WHERE id = ?`,
-      [username, full_name, email, role_id, is_active, is_active, is_active, id]
+      [usernameToSave, full_name, email, role_id, is_active, is_active, is_active, id]
     );
 
     if (!updateRes.affectedRows) throw { status: 404, message: "Usuario no encontrado" };

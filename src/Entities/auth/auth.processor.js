@@ -4,14 +4,21 @@ const bcrypt = require("bcrypt");
 const tokenHelper = require("../../_shared/token");
 
 exports.login = async (body) => {
-    const { email, password } = body;
+    const identifierRaw =
+        body?.email ??
+        body?.username ??
+        body?.username_or_email ??
+        body?.identifier ??
+        "";
+    const identifier = String(identifierRaw || "").trim();
+    const password = body?.password;
 
-    if (!email || !password) {
-        throw { status: 400, message: "Email and password are required" };
+    if (!identifier || !password) {
+        throw { status: 400, message: "identifier y password son requeridos" };
     }
 
     // 1. Get user data
-    const [rows] = await pool.query("CALL user_login_get(?)", [email]);
+    const [rows] = await pool.query("CALL user_login_get(?)", [identifier]);
     const user = rows[0][0];
 
     if (!user) {
