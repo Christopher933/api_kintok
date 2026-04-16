@@ -5529,3 +5529,355 @@ END ;;
 DELIMITER ;
 
 SELECT 'customer_extended_profile_applied' AS result;
+
+/*!50003 DROP PROCEDURE IF EXISTS `testimonial_list` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `testimonial_list`(
+    IN p_only_active TINYINT,
+    IN p_page        INT,
+    IN p_limit       INT
+)
+BEGIN
+    DECLARE v_offset INT;
+    DECLARE v_total  INT;
+
+    SET p_page  = COALESCE(p_page, 1);
+    SET p_limit = COALESCE(p_limit, 10);
+    SET v_offset = (p_page - 1) * p_limit;
+
+    IF p_only_active = 1 THEN
+        SELECT COUNT(*) INTO v_total FROM testimonial WHERE is_active = 1;
+    ELSE
+        SELECT COUNT(*) INTO v_total FROM testimonial;
+    END IF;
+
+    SELECT v_total AS total_records, p_page AS page_number, p_limit AS page_size,
+           CEIL(v_total / p_limit) AS total_pages;
+
+    IF p_only_active = 1 THEN
+        SELECT id, author_name, author_role, quote_text, avatar_url, is_active, sort_order
+        FROM testimonial
+        WHERE is_active = 1
+        ORDER BY sort_order, id
+        LIMIT p_limit OFFSET v_offset;
+    ELSE
+        SELECT id, author_name, author_role, quote_text, avatar_url, is_active, sort_order
+        FROM testimonial
+        ORDER BY sort_order, id
+        LIMIT p_limit OFFSET v_offset;
+    END IF;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `testimonial_upsert` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `testimonial_upsert`(
+    IN p_id INT,
+    IN p_author_name VARCHAR(150),
+    IN p_author_role VARCHAR(150),
+    IN p_quote_text TEXT,
+    IN p_avatar_url VARCHAR(500),
+    IN p_is_active TINYINT,
+    IN p_sort_order INT
+)
+BEGIN
+    DECLARE v_id INT;
+
+    IF TRIM(COALESCE(p_author_name, '')) = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'author_name es requerido';
+    END IF;
+
+    IF TRIM(COALESCE(p_quote_text, '')) = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'quote_text es requerido';
+    END IF;
+
+    IF p_id IS NULL THEN
+        INSERT INTO testimonial (author_name, author_role, quote_text, avatar_url, is_active, sort_order)
+        VALUES (
+            TRIM(p_author_name),
+            NULLIF(TRIM(COALESCE(p_author_role, '')), ''),
+            TRIM(p_quote_text),
+            NULLIF(TRIM(COALESCE(p_avatar_url, '')), ''),
+            COALESCE(p_is_active, 1),
+            COALESCE(p_sort_order, 0)
+        );
+        SET v_id = LAST_INSERT_ID();
+    ELSE
+        SELECT id INTO v_id FROM testimonial WHERE id = p_id LIMIT 1;
+
+        IF v_id IS NULL THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Testimonio no encontrado';
+        END IF;
+
+        UPDATE testimonial
+        SET author_name = TRIM(p_author_name),
+            author_role = NULLIF(TRIM(COALESCE(p_author_role, '')), ''),
+            quote_text  = TRIM(p_quote_text),
+            avatar_url  = NULLIF(TRIM(COALESCE(p_avatar_url, '')), ''),
+            is_active   = COALESCE(p_is_active, is_active),
+            sort_order  = COALESCE(p_sort_order, sort_order)
+        WHERE id = p_id;
+    END IF;
+
+    SELECT id, author_name, author_role, quote_text, avatar_url, is_active, sort_order
+    FROM testimonial
+    WHERE id = v_id
+    LIMIT 1;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 DROP PROCEDURE IF EXISTS `testimonial_delete` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `testimonial_delete`(
+    IN p_id INT
+)
+BEGIN
+    DECLARE v_exists INT;
+
+    IF p_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'id es requerido';
+    END IF;
+
+    SELECT id INTO v_exists FROM testimonial WHERE id = p_id LIMIT 1;
+
+    IF v_exists IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Testimonio no encontrado';
+    END IF;
+
+    DELETE FROM testimonial WHERE id = p_id;
+
+    SELECT p_id AS deleted_id;
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+SELECT 'testimonial_procedures_applied' AS result;
+
+/*!50003 DROP PROCEDURE IF EXISTS `dashboard_summary` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `dashboard_summary`(
+    IN p_date_from DATE,
+    IN p_date_to   DATE
+)
+BEGIN
+    DECLARE v_date_from DATE;
+    DECLARE v_date_to   DATE;
+
+    SET v_date_from = COALESCE(p_date_from, DATE_FORMAT(NOW(), '%Y-%m-01'));
+    SET v_date_to   = COALESCE(p_date_to,   LAST_DAY(NOW()));
+
+    -- #1 LEADS: totales y por status en el período
+    SELECT
+        COUNT(*)                                                        AS total_leads,
+        SUM(status = 'nuevo')                                           AS leads_nuevo,
+        SUM(status = 'contactado')                                      AS leads_contactado,
+        SUM(status = 'convertido')                                      AS leads_convertido,
+        SUM(status = 'descartado')                                      AS leads_descartado,
+        SUM(converted_at IS NOT NULL)                                   AS total_convertidos,
+        ROUND(SUM(converted_at IS NOT NULL) / NULLIF(COUNT(*),0)*100,1) AS tasa_conversion_pct,
+        ROUND(AVG(CASE WHEN converted_at IS NOT NULL
+                  THEN TIMESTAMPDIFF(HOUR, created_at, converted_at)
+                  END) / 24, 1)                                         AS promedio_dias_conversion
+    FROM lead_contact
+    WHERE created_at BETWEEN v_date_from AND DATE_ADD(v_date_to, INTERVAL 1 DAY);
+
+    -- #2 LEADS: top 5 propiedades con más leads
+    SELECT
+        lc.property_id,
+        p.title        AS property_title,
+        COUNT(*)       AS total_leads
+    FROM lead_contact lc
+    JOIN property p ON p.id = lc.property_id
+    WHERE lc.created_at BETWEEN v_date_from AND DATE_ADD(v_date_to, INTERVAL 1 DAY)
+    GROUP BY lc.property_id, p.title
+    ORDER BY total_leads DESC
+    LIMIT 5;
+
+    -- #3 CLIENTES: nuevos por mes (últimos 6 meses)
+    SELECT
+        DATE_FORMAT(created_at, '%Y-%m') AS mes,
+        COUNT(*)                          AS total
+    FROM customer
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+    GROUP BY mes
+    ORDER BY mes ASC;
+
+    -- #4 CLIENTES: por tipo, por fuente, por agente y sin seguimiento vencido
+    SELECT
+        COALESCE(customer_type, 'sin_tipo')   AS customer_type,
+        COUNT(*)                               AS total
+    FROM customer
+    GROUP BY customer_type;
+
+    SELECT
+        COALESCE(source, 'sin_fuente') AS source,
+        COUNT(*)                        AS total
+    FROM customer
+    GROUP BY source
+    ORDER BY total DESC;
+
+    SELECT
+        a.full_name  AS agent_name,
+        COUNT(c.id)  AS total_clientes
+    FROM customer c
+    JOIN agent a ON a.id = c.assigned_agent_id
+    GROUP BY c.assigned_agent_id, a.full_name
+    ORDER BY total_clientes DESC;
+
+    SELECT COUNT(*) AS clientes_seguimiento_vencido
+    FROM customer
+    WHERE next_follow_up_at IS NOT NULL
+      AND next_follow_up_at < NOW()
+      AND status = 'activo';
+
+    -- #5 PROPIEDADES: top 10 más vistas
+    SELECT id, title, views_count
+    FROM property
+    ORDER BY views_count DESC
+    LIMIT 10;
+
+    -- #6 PROPIEDADES: por status de negocio y publicación
+    SELECT
+        pbs.name AS business_status,
+        COUNT(p.id) AS total
+    FROM property p
+    JOIN property_business_status pbs ON pbs.id = p.business_status_id
+    GROUP BY pbs.name;
+
+    SELECT
+        pps.name AS publication_status,
+        COUNT(p.id) AS total
+    FROM property p
+    JOIN property_publication_status pps ON pps.id = p.publication_status_id
+    GROUP BY pps.name;
+
+    -- #7 PROPIEDADES: visitas únicas por período
+    SELECT
+        DATE(visited_at) AS fecha,
+        COUNT(DISTINCT ip_address) AS visitas_unicas,
+        COUNT(*) AS visitas_totales
+    FROM property_visit_log
+    WHERE visited_at BETWEEN v_date_from AND DATE_ADD(v_date_to, INTERVAL 1 DAY)
+    GROUP BY fecha
+    ORDER BY fecha ASC;
+
+    -- #8 PROPIEDADES: destacadas activas
+    SELECT COUNT(*) AS propiedades_destacadas
+    FROM property
+    WHERE is_featured = 1
+      AND publication_status_id = (SELECT id FROM property_publication_status WHERE name = 'activo' LIMIT 1);
+
+    -- #9 TRANSACCIONES: resumen por período
+    SELECT
+        COUNT(*)                                                          AS total_transacciones,
+        SUM(transaction_type = 'venta')                                   AS ventas,
+        SUM(transaction_type = 'renta')                                   AS rentas,
+        SUM(transaction_type = 'reserva')                                 AS reservas,
+        SUM(status = 'activa')                                            AS activas,
+        SUM(status = 'cancelada')                                         AS canceladas,
+        ROUND(SUM(CASE WHEN status != 'cancelada' THEN final_price ELSE 0 END), 2) AS ingresos_totales,
+        ROUND(AVG(CASE WHEN status != 'cancelada' THEN final_price END), 2)        AS monto_promedio
+    FROM property_transaction
+    WHERE transaction_date BETWEEN v_date_from AND DATE_ADD(v_date_to, INTERVAL 1 DAY);
+
+    -- #10 TRANSACCIONES: reservas activas
+    SELECT
+        pt.id             AS transaction_id,
+        p.title           AS property_title,
+        c.full_name       AS customer_name,
+        tr.deposit_amount,
+        tr.deposit_currency,
+        tr.expires_at
+    FROM transaction_reservation tr
+    JOIN property_transaction pt ON pt.id = tr.transaction_id
+    JOIN property p              ON p.id  = pt.property_id
+    JOIN customer c              ON c.id  = pt.customer_id
+    WHERE pt.status = 'activa'
+    ORDER BY tr.expires_at ASC;
+
+    -- #11 RENTAS: pagos del mes actual (cobrados vs pendientes)
+    SELECT
+        SUM(status = 'pagado')                      AS pagos_cobrados,
+        SUM(status = 'pendiente')                   AS pagos_pendientes,
+        SUM(status = 'vencido')                     AS pagos_vencidos,
+        SUM(CASE WHEN status = 'pagado'
+                 THEN amount_paid ELSE 0 END)       AS monto_cobrado,
+        SUM(CASE WHEN status != 'pagado'
+                 THEN amount_due ELSE 0 END)        AS monto_pendiente,
+        COUNT(CASE WHEN late_fee > 0 THEN 1 END)    AS pagos_con_retraso
+    FROM rent_payment
+    WHERE period_year  = YEAR(NOW())
+      AND period_month = MONTH(NOW());
+
+    -- #12 RENTAS: ingresos cobrados por mes (últimos 6 meses)
+    SELECT
+        CONCAT(period_year, '-', LPAD(period_month, 2, '0')) AS mes,
+        SUM(amount_paid)                                       AS monto_cobrado
+    FROM rent_payment
+    WHERE status = 'pagado'
+      AND STR_TO_DATE(CONCAT(period_year,'-',LPAD(period_month,2,'0'),'-01'), '%Y-%m-%d')
+          >= DATE_SUB(DATE_FORMAT(NOW(),'%Y-%m-01'), INTERVAL 5 MONTH)
+    GROUP BY period_year, period_month
+    ORDER BY period_year ASC, period_month ASC;
+
+    -- #13 RENTAS: contratos activos con auto-renovación
+    SELECT COUNT(*) AS contratos_auto_renovacion
+    FROM transaction_rental tr
+    JOIN property_transaction pt ON pt.id = tr.transaction_id
+    WHERE pt.status = 'activa'
+      AND tr.auto_renew = 1;
+
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+SELECT 'dashboard_procedures_applied' AS result;

@@ -6,3 +6,4 @@ public/
 db.sql
 .env
 .env.*
+kintok_aws.pem

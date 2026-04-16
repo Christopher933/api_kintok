@@ -9,6 +9,7 @@ const cms = require('./src/Entities/cms/cms.routes');
 const customer = require('./src/Entities/customer/customer.routes');
 const transaction = require('./src/Entities/transaction/transaction.routes');
 const user = require('./src/Entities/user/user.routes');
+const dashboard = require('./src/Entities/dashboard/dashboard.routes');
 
 // Usar la ruta
 router.use("/auth", auth);
@@ -19,5 +20,6 @@ router.use("/cms", cms);
 router.use("/customer", customer);
 router.use("/transaction", transaction);
 router.use("/user", user);
+router.use("/dashboard", dashboard);
 
 module.exports = router;
