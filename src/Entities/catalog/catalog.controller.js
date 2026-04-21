@@ -99,6 +99,33 @@ exports.businessStatusList = async (req, res) => {
     }
 };
 
+exports.landUseList = async (_req, res) => {
+    try {
+        const data = await processor.landUseList();
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+};
+
+exports.topographyList = async (_req, res) => {
+    try {
+        const data = await processor.topographyList();
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+};
+
+exports.searchFilters = async (_req, res) => {
+    try {
+        const data = await processor.searchFilters();
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
+    }
+};
+
 exports.documentTypeList = async (req, res) => {
     try {
         const data = await processor.documentTypeList(req.query.applicable_to);

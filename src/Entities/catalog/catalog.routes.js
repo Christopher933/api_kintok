@@ -3,6 +3,9 @@ const router = express.Router();
 const controller = require("./catalog.controller");
 const { verifyAccess, authorizeModuleAction } = require("../../_shared/token");
 
+router.get("/filters", controller.searchFilters);
+router.get("/land-use/list", controller.landUseList);
+router.get("/topography/list", controller.topographyList);
 router.post("/city/upsert", verifyAccess, authorizeModuleAction("catalog", "update"), controller.cityUpsert);
 router.get("/city/list", controller.cityList);
 router.post("/zone/upsert", verifyAccess, authorizeModuleAction("catalog", "update"), controller.zoneUpsert);

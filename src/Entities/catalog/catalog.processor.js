@@ -60,6 +60,65 @@ exports.businessStatusList = async () => {
     return result;
 };
 
+exports.landUseList = async () => {
+    const [result] = await pool.query("SELECT * FROM land_use ORDER BY name ASC");
+    return result;
+};
+
+exports.topographyList = async () => {
+    const [result] = await pool.query("SELECT * FROM topography ORDER BY name ASC");
+    return result;
+};
+
+exports.searchFilters = async () => {
+    const [property_types] = await pool.query(`
+        SELECT DISTINCT pt.id, pt.name
+        FROM property_type pt
+        INNER JOIN property p ON p.property_type_id = pt.id AND p.publication_status_id = 1
+        ORDER BY pt.name ASC
+    `);
+    const [operations] = await pool.query(`
+        SELECT DISTINCT o.id, o.name
+        FROM operation o
+        INNER JOIN property p ON p.operation_id = o.id AND p.publication_status_id = 1
+        ORDER BY o.name ASC
+    `);
+    const [cities] = await pool.query(`
+        SELECT DISTINCT c.id, c.name
+        FROM city c
+        INNER JOIN property p ON p.city_id = c.id AND p.publication_status_id = 1
+        ORDER BY c.name ASC
+    `);
+    const [amenities] = await pool.query(`
+        SELECT DISTINCT a.id, a.name
+        FROM amenity a
+        INNER JOIN property_amenity pa ON pa.amenity_id = a.id
+        INNER JOIN property p ON p.id = pa.property_id AND p.publication_status_id = 1
+        ORDER BY a.name ASC
+    `);
+    const [zones] = await pool.query(`
+        SELECT DISTINCT z.id, z.name, z.city_id
+        FROM zone z
+        INNER JOIN property p ON p.zone_id = z.id AND p.publication_status_id = 1
+        ORDER BY z.name ASC
+    `);
+    const [land_uses] = await pool.query(`
+        SELECT DISTINCT lu.id, lu.name
+        FROM land_use lu
+        INNER JOIN property_land pl ON pl.land_use_id = lu.id
+        INNER JOIN property p ON p.id = pl.property_id AND p.publication_status_id = 1
+        ORDER BY lu.name ASC
+    `);
+    const [topographies] = await pool.query(`
+        SELECT DISTINCT tp.id, tp.name
+        FROM topography tp
+        INNER JOIN property_land pl ON pl.topography_id = tp.id
+        INNER JOIN property p ON p.id = pl.property_id AND p.publication_status_id = 1
+        ORDER BY tp.name ASC
+    `);
+    return { property_types, operations, cities, zones, amenities, land_uses, topographies };
+};
+
 exports.documentTypeList = async (applicable_to) => {
     if (applicable_to && applicable_to !== "todos") {
         const [result] = await pool.query(

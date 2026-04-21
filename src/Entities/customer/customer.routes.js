@@ -10,5 +10,6 @@ router.post("/upsert", authorizeModuleAction("customer", "update"), controller.u
 router.get("/notes", authorizeModuleAction("customer", "view"), controller.notesList);
 router.post("/notes", authorizeModuleAction("customer", "create"), controller.notesAdd);
 router.put("/notes", authorizeModuleAction("customer", "create"), controller.notesAdd);
+router.delete("/:customer_id", authorizeModuleAction("customer", "delete"), controller.deleteCustomer);
 
 module.exports = router;

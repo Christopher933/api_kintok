@@ -1,4 +1,8 @@
-const { pool } = require("../../_shared/bd");
+const db = require("../../_shared/bd");
+const pool = db.pool;
+const path = require("path");
+const fs = require("fs");
+const { useS3, deleteByKey, keyFromUrl } = require("../../_shared/s3_storage");
 
 const mapDbError = (error) => {
     if (error && error.sqlState === "45000") {
@@ -171,4 +175,52 @@ exports.notesAdd = async (body, actorUserId = null) => {
     } catch (error) {
         throw mapDbError(error);
     }
+};
+
+exports.deleteCustomer = async (id) => {
+    const customerId = Number(id);
+    if (!customerId || Number.isNaN(customerId)) {
+        throw { status: 400, message: "customer_id inválido" };
+    }
+
+    let docUrls = [];
+    try {
+        const [result] = await pool.query("CALL customer_delete(?)", [customerId]);
+
+        // result[0] contiene los file_urls de documentos transaccionales
+        if (result && result[0]) {
+            docUrls = result[0].map((r) => r.file_url).filter(Boolean);
+        }
+    } catch (error) {
+        throw mapDbError(error);
+    }
+
+    const cleanupErrors = [];
+    for (const fileUrl of docUrls) {
+        try {
+            if (useS3) {
+                const s3Key = keyFromUrl(fileUrl);
+                if (s3Key) {
+                    await deleteByKey(s3Key);
+                }
+            } else {
+                const filename = path.basename(fileUrl);
+                const filePath = path.join(__dirname, "../../../public/uploads/docs", filename);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+            }
+        } catch (cleanupError) {
+            cleanupErrors.push({
+                file_url: fileUrl,
+                message: cleanupError?.message || "No se pudo eliminar archivo",
+            });
+        }
+    }
+
+    return {
+        message: "Cliente eliminado correctamente",
+        customer_id: customerId,
+        cleanup_warnings: cleanupErrors,
+    };
 };

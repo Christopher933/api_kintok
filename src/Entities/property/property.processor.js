@@ -78,7 +78,7 @@ exports.search = async (body) => {
         min_power_kva,
         industrial_park,
         // Advanced: Land
-        land_use,
+        land_use_id,
         // Amenities (array of names)
         amenities,
         // Pagination
@@ -116,7 +116,7 @@ exports.search = async (body) => {
             min_docks || null,
             min_power_kva || null,
             industrial_park === undefined ? null : (industrial_park ? 1 : null),
-            land_use || null,
+            land_use_id || null,
             amenitiesStr,
             parseInt(page_number) || 1,
             parseInt(page_size) || 10,
@@ -146,8 +146,10 @@ exports.upsert = async (body) => {
         body.longitude || null,       // NEW
         body.title,
         body.description || null,
-        body.area_value || null,
+        body.construction_area ?? body.area_value ?? null,
+        body.land_area ?? null,
         body.price_value || null,
+        body.enganche || null,
         body.currency,
         body.is_featured || 0,
         body.publication_status_id || null,
@@ -163,14 +165,14 @@ exports.upsert = async (body) => {
         body.pets_allowed || 0,
         body.is_furnished || 0,
         body.age || null,
-        body.land_use || null,
+        body.land_use_id || null,
         body.frontage || null,
         body.depth || null,
-        body.topography || null,
+        body.topography_id || null,
         amenitiesJson,
     ];
     const [result] = await pool.query(
-        "CALL property_upsert(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "CALL property_upsert(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         params
     );
     return result[0][0];
@@ -316,58 +318,46 @@ exports.deleteProperty = async (id) => {
         throw { status: 400, message: "property_id inválido" };
     }
 
-    const conn = await pool.getConnection();
-    let imageUrls = [];
     try {
-        await conn.beginTransaction();
-
-        const [existsRows] = await conn.query("SELECT id FROM property WHERE id = ?", [propertyId]);
-        if (!existsRows.length) {
-            throw { status: 404, message: "Propiedad no encontrada" };
+        const [result] = await pool.query("CALL property_delete(?)", [propertyId]);
+        
+        // result[0] contiene los image_urls
+        // result[1] contiene los file_urls
+        if (result && result[0]) {
+            imageUrls = result[0].map((r) => r.image_url).filter(Boolean);
         }
-
-        const [txRows] = await conn.query(
-            "SELECT COUNT(*) AS total FROM property_transaction WHERE property_id = ?",
-            [propertyId]
-        );
-        if (Number(txRows[0]?.total || 0) > 0) {
-            throw {
-                status: 400,
-                message: "No se puede eliminar la propiedad porque tiene transacciones asociadas",
-            };
+        if (result && result[1]) {
+            docUrls = result[1].map((r) => r.file_url).filter(Boolean);
         }
-
-        const [imgRows] = await conn.query("SELECT image_url FROM property_image WHERE property_id = ?", [propertyId]);
-        imageUrls = imgRows.map((r) => r.image_url).filter(Boolean);
-
-        await conn.query("DELETE FROM property WHERE id = ?", [propertyId]);
-        await conn.commit();
     } catch (error) {
-        await conn.rollback();
-        throw error;
-    } finally {
-        conn.release();
+        throw mapDbError(error);
     }
 
     // Limpieza física despues del commit para no romper integridad de DB si falla S3/local.
     const cleanupErrors = [];
-    for (const imageUrl of imageUrls) {
+    const allFiles = [...imageUrls, ...docUrls];
+
+    for (const fileUrl of allFiles) {
         try {
             if (useS3) {
-                const s3Key = keyFromUrl(imageUrl);
+                const s3Key = keyFromUrl(fileUrl);
                 if (s3Key) {
                     await deleteByKey(s3Key);
                 }
             } else {
-                const filename = path.basename(imageUrl);
-                const filePath = path.join(uploadDir, filename);
+                const filename = path.basename(fileUrl);
+                // Distinguir si es imagen o documento por la ruta local
+                const isDoc = fileUrl.includes("/docs/");
+                const filePath = isDoc 
+                    ? path.join(__dirname, "../../../public/uploads/docs", filename)
+                    : path.join(uploadDir, filename);
                 if (fs.existsSync(filePath)) {
                     fs.unlinkSync(filePath);
                 }
             }
         } catch (cleanupError) {
             cleanupErrors.push({
-                image_url: imageUrl,
+                file_url: fileUrl,
                 message: cleanupError?.message || "No se pudo eliminar archivo",
             });
         }

@@ -201,3 +201,21 @@ exports.convertToCustomer = async (body, actorUserId = null) => {
         throw mapDbError(error);
     }
 };
+
+exports.deleteLead = async (id) => {
+    const leadId = Number(id);
+    if (!leadId || Number.isNaN(leadId)) {
+        throw { status: 400, message: "lead_contact_id inválido" };
+    }
+
+    try {
+        await pool.query("CALL lead_contact_delete(?)", [leadId]);
+    } catch (error) {
+        throw mapDbError(error);
+    }
+
+    return {
+        message: "Lead eliminado correctamente",
+        lead_contact_id: leadId,
+    };
+};

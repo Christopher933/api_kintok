@@ -44,3 +44,12 @@ exports.notesAdd = async (req, res) => {
         res.status(error.status || 500).send({ message: error.message });
     }
 };
+
+exports.deleteCustomer = async (req, res) => {
+    try {
+        const data = await processor.deleteCustomer(req.params.customer_id);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(error.status || 500).send({ message: error.message });
+    }
+};

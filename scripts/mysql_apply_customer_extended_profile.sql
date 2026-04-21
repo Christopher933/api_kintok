@@ -468,6 +468,13 @@ BEGIN
         SET MESSAGE_TEXT = 'preferred_currency inválido. Usa: MXN o USD';
     END IF;
 
+    -- Silently nullify assigned_agent_id if the user doesn't exist
+    IF p_assigned_agent_id IS NOT NULL THEN
+        SET p_assigned_agent_id = (
+            SELECT id FROM `user` WHERE id = p_assigned_agent_id LIMIT 1
+        );
+    END IF;
+
     IF p_id IS NULL OR p_id = 0 THEN
         INSERT INTO customer (
             full_name,

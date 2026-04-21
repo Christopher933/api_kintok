@@ -78,7 +78,7 @@ CREATE TABLE `amenity` (
 
 LOCK TABLES `amenity` WRITE;
 /*!40000 ALTER TABLE `amenity` DISABLE KEYS */;
-INSERT INTO `amenity` VALUES (1,'Alberca'),(3,'Elevador'),(2,'Gimnasio'),(5,'Roof garden'),(4,'Seguridad');
+INSERT INTO `amenity` VALUES (1,'Alberca'),(6,'Casa club'),(3,'Elevador'),(2,'Gimnasio'),(5,'Roof garden'),(4,'Seguridad');
 /*!40000 ALTER TABLE `amenity` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -351,7 +351,7 @@ CREATE TABLE `permission_module` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_permission_module_key` (`module_key`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -369,7 +369,8 @@ INSERT INTO `permission_module` VALUES
 (6,'customer','Clientes','2026-04-09 09:00:00','2026-04-09 09:00:00'),
 (7,'transaction','Transacciones','2026-04-09 09:00:00','2026-04-09 09:00:00'),
 (8,'catalog','Catálogos','2026-04-09 09:00:00','2026-04-09 09:00:00'),
-(9,'cms','Contenido CMS','2026-04-09 09:00:00','2026-04-09 09:00:00');
+(9,'cms','Contenido CMS','2026-04-09 09:00:00','2026-04-09 09:00:00'),
+(10,'dashboard','Dashboard','2026-04-15 09:00:00','2026-04-15 09:00:00');
 /*!40000 ALTER TABLE `permission_module` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -391,8 +392,10 @@ CREATE TABLE `property` (
   `longitude` decimal(11,8) DEFAULT NULL,
   `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `description` text COLLATE utf8mb4_unicode_ci,
-  `area_value` decimal(14,2) DEFAULT NULL,
+  `construction_area` decimal(14,2) DEFAULT NULL,
+  `land_area` decimal(14,2) DEFAULT NULL,
   `price_value` decimal(14,2) DEFAULT NULL,
+  `enganche` decimal(14,2) DEFAULT NULL,
   `currency` char(3) COLLATE utf8mb4_unicode_ci NOT NULL,
   `views_count` int NOT NULL DEFAULT '0',
   `is_featured` tinyint(1) NOT NULL DEFAULT '0',
@@ -873,7 +876,10 @@ INSERT INTO `role_module_permission` VALUES
 (3,6,1,1,1,0,1,'2026-04-09 09:05:00'),
 (3,7,1,1,1,0,1,'2026-04-09 09:05:00'),
 (3,8,1,0,0,0,1,'2026-04-09 09:05:00'),
-(3,9,1,0,0,0,1,'2026-04-09 09:05:00');
+(3,9,1,0,0,0,1,'2026-04-09 09:05:00'),
+(1,10,1,1,1,1,1,'2026-04-15 09:05:00'),
+(2,10,1,1,1,1,1,'2026-04-15 09:05:00'),
+(3,10,1,0,0,0,1,'2026-04-15 09:05:00');
 /*!40000 ALTER TABLE `role_module_permission` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -3171,7 +3177,8 @@ BEGIN
         p.id,
         p.title,
         p.description,
-        p.area_value,
+        p.construction_area,
+        p.land_area,
         p.price_value,
         p.currency,
         fn_format_price(p.price_value, p.currency) AS formatted_price,
@@ -3285,8 +3292,8 @@ BEGIN
         AND (p_operation_id     IS NULL OR p.operation_id     = p_operation_id)
         AND (p_city_id          IS NULL OR p.city_id          = p_city_id)
         AND (p_zone_id          IS NULL OR p.zone_id          = p_zone_id)
-        AND (p_min_area         IS NULL OR p.area_value      >= p_min_area)
-        AND (p_max_area         IS NULL OR p.area_value      <= p_max_area)
+        AND (p_min_area         IS NULL OR p.land_area >= p_min_area)
+        AND (p_max_area         IS NULL OR p.land_area <= p_max_area)
         AND (p_min_price        IS NULL OR IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) >= p_min_price)
         AND (p_max_price        IS NULL OR IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) <= p_max_price)
         AND (p_featured_only    IS NULL OR p_featured_only = 0 OR p.is_featured = 1)
@@ -3329,7 +3336,8 @@ BEGIN
         p.zone_id,
         p.title,
         p.description,
-        p.area_value,
+        p.construction_area,
+        p.land_area,
         p.price_value   AS original_price,
         p.currency      AS original_currency,
         CONCAT('$', FORMAT(p.price_value, 2), ' ', p.currency) AS formatted_original_price,
@@ -3391,8 +3399,8 @@ BEGIN
         AND (p_operation_id     IS NULL OR p.operation_id     = p_operation_id)
         AND (p_city_id          IS NULL OR p.city_id          = p_city_id)
         AND (p_zone_id          IS NULL OR p.zone_id          = p_zone_id)
-        AND (p_min_area         IS NULL OR p.area_value      >= p_min_area)
-        AND (p_max_area         IS NULL OR p.area_value      <= p_max_area)
+        AND (p_min_area         IS NULL OR p.land_area >= p_min_area)
+        AND (p_max_area         IS NULL OR p.land_area <= p_max_area)
         AND (p_min_price        IS NULL OR IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) >= p_min_price)
         AND (p_max_price        IS NULL OR IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) <= p_max_price)
         AND (p_featured_only    IS NULL OR p_featured_only = 0 OR p.is_featured = 1)
@@ -3907,8 +3915,10 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `property_upsert`(
     IN p_longitude DECIMAL(11,8),
     IN p_title VARCHAR(255),
     IN p_description TEXT,
-    IN p_area_value DECIMAL(14,2),
+    IN p_construction_area DECIMAL(14,2),
+    IN p_land_area DECIMAL(14,2),
     IN p_price_value DECIMAL(14,2),
+    IN p_enganche DECIMAL(14,2),
     IN p_currency CHAR(3),
     IN p_is_featured TINYINT,
     IN p_publication_status_id INT,
@@ -3958,11 +3968,11 @@ BEGIN
     IF p_id IS NULL OR p_id = 0 THEN
         INSERT INTO property (
             property_type_id, operation_id, city_id, zone_id,
-            address, latitude, longitude, title, description, area_value, price_value, currency,
+            address, latitude, longitude, title, description, construction_area, land_area, price_value, enganche, currency,
             is_featured, publication_status_id, business_status_id
         ) VALUES (
             p_property_type_id, p_operation_id, p_city_id, p_zone_id,
-            p_address, p_latitude, p_longitude, p_title, p_description, p_area_value, p_price_value, p_currency,
+            p_address, p_latitude, p_longitude, p_title, p_description, p_construction_area, p_land_area, p_price_value, p_enganche, p_currency,
             p_is_featured, p_publication_status_id, p_business_status_id
         );
         SET v_property_id = LAST_INSERT_ID();
@@ -3972,7 +3982,7 @@ BEGIN
             city_id = p_city_id, zone_id = p_zone_id,
             address = p_address, latitude = p_latitude, longitude = p_longitude,
             title = p_title, description = p_description,
-            area_value = p_area_value, price_value = p_price_value,
+            construction_area = p_construction_area, land_area = p_land_area, price_value = p_price_value, enganche = p_enganche,
             currency = p_currency, is_featured = p_is_featured,
             publication_status_id = p_publication_status_id,
             business_status_id = p_business_status_id

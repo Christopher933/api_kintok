@@ -71,3 +71,12 @@ exports.convertToCustomer = async (req, res) => {
         res.status(error.status || 500).send({ message: error.message });
     }
 };
+
+exports.deleteLead = async (req, res) => {
+    try {
+        const data = await processor.deleteLead(req.params.lead_contact_id);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(error.status || 500).send({ message: error.message });
+    }
+};

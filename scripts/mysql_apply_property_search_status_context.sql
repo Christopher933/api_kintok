@@ -61,8 +61,8 @@ BEGIN
         AND (p_operation_id     IS NULL OR p.operation_id     = p_operation_id)
         AND (p_city_id          IS NULL OR p.city_id          = p_city_id)
         AND (p_zone_id          IS NULL OR p.zone_id          = p_zone_id)
-        AND (p_min_area         IS NULL OR p.area_value      >= p_min_area)
-        AND (p_max_area         IS NULL OR p.area_value      <= p_max_area)
+        AND (p_min_area         IS NULL OR p.land_area >= p_min_area)
+        AND (p_max_area         IS NULL OR p.land_area <= p_max_area)
         AND (p_min_price        IS NULL OR IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) >= p_min_price)
         AND (p_max_price        IS NULL OR IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) <= p_max_price)
         AND (p_featured_only    IS NULL OR p_featured_only = 0 OR p.is_featured = 1)
@@ -103,7 +103,8 @@ BEGIN
         p.zone_id,
         p.title,
         p.description,
-        p.area_value,
+        p.construction_area,
+        p.land_area,
         p.price_value   AS original_price,
         p.currency      AS original_currency,
         CONCAT('$', FORMAT(p.price_value, 2), ' ', p.currency) AS formatted_original_price,
@@ -165,8 +166,8 @@ BEGIN
         AND (p_operation_id     IS NULL OR p.operation_id     = p_operation_id)
         AND (p_city_id          IS NULL OR p.city_id          = p_city_id)
         AND (p_zone_id          IS NULL OR p.zone_id          = p_zone_id)
-        AND (p_min_area         IS NULL OR p.area_value      >= p_min_area)
-        AND (p_max_area         IS NULL OR p.area_value      <= p_max_area)
+        AND (p_min_area         IS NULL OR p.land_area >= p_min_area)
+        AND (p_max_area         IS NULL OR p.land_area <= p_max_area)
         AND (p_min_price        IS NULL OR IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) >= p_min_price)
         AND (p_max_price        IS NULL OR IFNULL(fn_convert_to_base(p.price_value, p.currency, v_target_curr), p.price_value) <= p_max_price)
         AND (p_featured_only    IS NULL OR p_featured_only = 0 OR p.is_featured = 1)

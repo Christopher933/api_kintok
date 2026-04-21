@@ -17,5 +17,6 @@ router.get("/notes", authorizeModuleAction("lead", "view"), controller.notesList
 router.post("/notes", authorizeModuleAction("lead", "create"), controller.notesAdd);
 router.put("/notes", authorizeModuleAction("lead", "create"), controller.notesAdd); // compatibilidad con front actual
 router.post("/convert", authorizeModuleAction("lead", "update"), controller.convertToCustomer);
+router.delete("/:lead_contact_id", authorizeModuleAction("lead", "delete"), controller.deleteLead);
 
 module.exports = router;
