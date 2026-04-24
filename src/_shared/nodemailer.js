@@ -5,20 +5,16 @@ const path = require("path");
 const email = [];
 
 const transporter = nodemailer.createTransport({
-  service: process.env.SERVICE_EMAIL, 
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 465,
+  secure: true,
   auth: {
     user: process.env.USER_EMAIL,
     pass: process.env.PASS_EMAIL,
   },
 });
 
-const transporter2 = nodemailer.createTransport({
-  service: process.env.SERVICE_EMAIL, 
-  auth: {
-    user: process.env.USER_EMAIL2,
-    pass: process.env.PASS_EMAIL2,
-  },
-});
+const transporter2 = transporter;
 
 email.sendEmail = async (params, result) => {
 
@@ -36,7 +32,7 @@ email.sendEmail = async (params, result) => {
   }
 
   var mail_options = {
-    from: process.env.USER_EMAIL,
+    from: `"Kintok" <${process.env.USER_EMAIL}>`,
     to: [...data_email.email],
     subject: data_email.subject,
     bcc: data_email.bcc ?? [],

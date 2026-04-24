@@ -13,11 +13,18 @@ router.post("/:transaction_id/close", authorizeModuleAction("transaction", "upda
 
 router.get("/:transaction_id/detail", authorizeModuleAction("transaction", "view"), controller.getDetail);
 router.post("/:transaction_id/reservation", authorizeModuleAction("transaction", "update"), controller.saveReservation);
+router.post("/:transaction_id/sale", authorizeModuleAction("transaction", "update"), controller.saveSale);
 router.post("/:transaction_id/rental", authorizeModuleAction("transaction", "update"), controller.saveRental);
 
 router.get("/:transaction_id/payments", authorizeModuleAction("transaction", "view"), controller.listPayments);
 router.post("/:transaction_id/payments/generate", authorizeModuleAction("transaction", "update"), controller.generatePayments);
 router.put("/payment/:payment_id", authorizeModuleAction("transaction", "update"), controller.updatePayment);
+
+router.get("/:transaction_id/sale-payments", authorizeModuleAction("transaction", "view"), controller.listSalePayments);
+router.post("/:transaction_id/sale-payments/generate", authorizeModuleAction("transaction", "update"), controller.generateSalePayments);
+router.put("/sale-payment/:payment_id", authorizeModuleAction("transaction", "update"), controller.updateSalePayment);
+router.get("/sale-payment/:payment_id/partialities", authorizeModuleAction("transaction", "view"), controller.listSalePartialities);
+router.post("/sale-payment/:payment_id/partial", authorizeModuleAction("transaction", "update"), controller.addSalePartialPayment);
 router.get("/payment/:payment_id/partialities", authorizeModuleAction("transaction", "view"), controller.listPartialities);
 router.post("/payment/:payment_id/partial", authorizeModuleAction("transaction", "update"), controller.addPartialPayment);
 

@@ -75,6 +75,62 @@ exports.saveReservation = async (req, res) => {
     }
 };
 
+// ── Venta financiada ──────────────────────────────────────────────────────────
+
+exports.saveSale = async (req, res) => {
+    try {
+        const data = await processor.saveSale(req.params.transaction_id, req.body);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(error.status || 500).send({ message: error.message });
+    }
+};
+
+exports.listSalePayments = async (req, res) => {
+    try {
+        const data = await processor.listSalePayments(req.params.transaction_id);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(error.status || 500).send({ message: error.message });
+    }
+};
+
+exports.listSalePartialities = async (req, res) => {
+    try {
+        const data = await processor.listSalePartialities(req.params.payment_id);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(error.status || 500).send({ message: error.message });
+    }
+};
+
+exports.addSalePartialPayment = async (req, res) => {
+    try {
+        const data = await processor.addSalePartialPayment(req.params.payment_id, req.body, req.user?.id || null);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(error.status || 500).send({ message: error.message });
+    }
+};
+
+exports.generateSalePayments = async (req, res) => {
+    try {
+        const data = await processor.generateSalePayments(req.params.transaction_id);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(error.status || 500).send({ message: error.message });
+    }
+};
+
+exports.updateSalePayment = async (req, res) => {
+    try {
+        const data = await processor.updateSalePayment(req.params.payment_id, req.body, req.user?.id || null);
+        res.status(200).send(data);
+    } catch (error) {
+        res.status(error.status || 500).send({ message: error.message });
+    }
+};
+
 // ── Renta ─────────────────────────────────────────────────────────────────────
 
 exports.saveRental = async (req, res) => {

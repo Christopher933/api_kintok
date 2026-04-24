@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(launchctl load *)",
+      "Bash(launchctl list *)",
+      "Bash(mysql -u root -pFrijolito69 -h 127.0.0.1 -P 3307 kintok)",
+      "Bash(grep -n \"Table structure for table \\\\`sale_payment\\\\`\\\\|Table structure for table \\\\`transaction_sale\\\\`\\\\|Table structure for table \\\\`transaction_document\\\\`\\\\|SELECT 'sale_financing_applied'\" /Users/christopher/Documents/kintok/api_kintok/db.sql)"
+    ],
+    "additionalDirectories": [
+      "/Users/christopher/Library/LaunchAgents"
+    ]
+  }
+}

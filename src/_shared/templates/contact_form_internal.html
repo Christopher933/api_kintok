@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <style>
+      table, td, div, h1, p, h2, h3, span {
+        font-family: Arial, sans-serif;
+      }
+      * { padding: 0; margin: 0; box-sizing: border-box; }
+      p { font-size: 15px; line-height: 1.6; color: #444444; }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f4f4f4;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4; padding: 32px 0;">
+      <tr>
+        <td align="center">
+          <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+            <!-- Header -->
+            <tr>
+              <td align="center" style="background-color:#1a1a2e; padding: 24px;">
+                <h1 style="color:#c9a84c; font-size:22px; font-weight:700; letter-spacing:2px; margin:0;">KINTOK — EQUIPO INTERNO</h1>
+                <p style="font-size:12px; letter-spacing:2px; margin-top:6px; color:#aaaaaa;">NUEVO LEAD DEL SITIO WEB</p>
+              </td>
+            </tr>
+
+            <!-- Alert bar -->
+            <tr>
+              <td style="background-color:#c9a84c; padding: 10px 24px;" align="center">
+                <p style="color:#1a1a2e; font-size:13px; font-weight:700; letter-spacing:1px; margin:0;">
+                  ¡Se recibió un nuevo formulario de contacto! — {{FECHA}}
+                </p>
+              </td>
+            </tr>
+
+            <!-- Body -->
+            <tr>
+              <td style="padding: 32px 40px;">
+                <p style="font-size:15px; color:#1a1a2e; font-weight:600; margin-bottom:20px;">Datos del prospecto:</p>
+
+                <!-- Datos del cliente -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e0e0e0; border-radius:6px; overflow:hidden; margin-bottom:24px;">
+                  <tr style="background-color:#f9f9f9;">
+                    <td style="padding:10px 16px; width:140px; border-bottom:1px solid #e0e0e0;">
+                      <p style="font-size:12px; color:#888; font-weight:700; text-transform:uppercase;">Nombre</p>
+                    </td>
+                    <td style="padding:10px 16px; border-bottom:1px solid #e0e0e0; border-left:1px solid #e0e0e0;">
+                      <p style="font-size:15px; color:#1a1a2e; font-weight:600;">{{NOMBRE}}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px; border-bottom:1px solid #e0e0e0; background-color:#f9f9f9;">
+                      <p style="font-size:12px; color:#888; font-weight:700; text-transform:uppercase;">Correo</p>
+                    </td>
+                    <td style="padding:10px 16px; border-bottom:1px solid #e0e0e0; border-left:1px solid #e0e0e0;">
+                      <p style="font-size:15px; color:#1a1a2e;">{{EMAIL}}</p>
+                    </td>
+                  </tr>
+                  <tr style="background-color:#f9f9f9;">
+                    <td style="padding:10px 16px; border-bottom:1px solid #e0e0e0;">
+                      <p style="font-size:12px; color:#888; font-weight:700; text-transform:uppercase;">Teléfono</p>
+                    </td>
+                    <td style="padding:10px 16px; border-bottom:1px solid #e0e0e0; border-left:1px solid #e0e0e0;">
+                      <p style="font-size:15px; color:#1a1a2e;">{{TELEFONO}}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px; border-bottom:1px solid #e0e0e0; background-color:#f9f9f9;">
+                      <p style="font-size:12px; color:#888; font-weight:700; text-transform:uppercase;">Interés</p>
+                    </td>
+                    <td style="padding:10px 16px; border-bottom:1px solid #e0e0e0; border-left:1px solid #e0e0e0;">
+                      <p style="font-size:15px; color:#1a1a2e;">{{INTERES}}</p>
+                    </td>
+                  </tr>
+                  <tr style="background-color:#f9f9f9;">
+                    <td style="padding:10px 16px; vertical-align:top;">
+                      <p style="font-size:12px; color:#888; font-weight:700; text-transform:uppercase;">Mensaje</p>
+                    </td>
+                    <td style="padding:10px 16px; border-left:1px solid #e0e0e0;">
+                      <p style="font-size:15px; color:#1a1a2e;">{{MENSAJE}}</p>
+                    </td>
+                  </tr>
+                </table>
+
+                {{PROPIEDAD_BLOQUE}}
+
+                <p style="font-size:13px; color:#888;">Este correo fue generado automáticamente desde el formulario de contacto del sitio web de Kintok.</p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td align="center" style="background-color:#1a1a2e; padding: 16px 40px;">
+                <p style="font-size:12px; color:#aaa;">© {{ANIO}} Kintok — Solo para uso interno</p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

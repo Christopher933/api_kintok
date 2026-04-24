@@ -242,7 +242,7 @@ DROP TABLE IF EXISTS `lead_contact`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `lead_contact` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `property_id` int NOT NULL,
+  `property_id` int DEFAULT NULL,
   `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
   `email` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
   `phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -1239,6 +1239,102 @@ INSERT INTO `rent_payment_partiality` VALUES
 UNLOCK TABLES;
 
 --
+-- Table structure for table `financing_config`
+--
+
+DROP TABLE IF EXISTS `financing_config`;
+CREATE TABLE `financing_config` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `tasa_interes_anual` decimal(5,2) NOT NULL DEFAULT '10.00',
+  `plazo_meses_default` smallint NOT NULL DEFAULT '60',
+  `plazo_meses_min` smallint NOT NULL DEFAULT '1',
+  `plazo_meses_max` smallint NOT NULL DEFAULT '240',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `fk_financing_config_user` FOREIGN KEY (`updated_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `financing_config` (`tasa_interes_anual`, `plazo_meses_default`, `plazo_meses_min`, `plazo_meses_max`)
+VALUES (10.00, 60, 1, 240);
+
+--
+-- Table structure for table `transaction_sale`
+--
+
+DROP TABLE IF EXISTS `transaction_sale`;
+CREATE TABLE `transaction_sale` (
+  `transaction_id` int NOT NULL,
+  `tipo` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'credito',
+  `start_date` date NOT NULL,
+  `payment_day` tinyint NOT NULL DEFAULT '1',
+  `enganche` decimal(14,2) NOT NULL DEFAULT '0.00',
+  `saldo_financiar` decimal(14,2) NOT NULL,
+  `tasa_interes_anual` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `plazo_meses` smallint NOT NULL,
+  PRIMARY KEY (`transaction_id`),
+  CONSTRAINT `fk_transaction_sale_transaction` FOREIGN KEY (`transaction_id`) REFERENCES `property_transaction` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `chk_transaction_sale_tipo` CHECK ((`tipo` in (_utf8mb4'contado',_utf8mb4'credito'))),
+  CONSTRAINT `chk_transaction_sale_payment_day` CHECK ((`payment_day` between 1 and 28)),
+  CONSTRAINT `chk_transaction_sale_plazo` CHECK ((`plazo_meses` > 0)),
+  CONSTRAINT `chk_transaction_sale_tasa` CHECK ((`tasa_interes_anual` >= 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Table structure for table `sale_payment`
+--
+
+DROP TABLE IF EXISTS `sale_payment_partiality`;
+DROP TABLE IF EXISTS `sale_payment`;
+CREATE TABLE `sale_payment` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `transaction_id` int NOT NULL,
+  `payment_number` smallint NOT NULL,
+  `due_date` date NOT NULL,
+  `amount_due` decimal(14,2) NOT NULL,
+  `capital` decimal(14,2) NOT NULL,
+  `interest` decimal(14,2) NOT NULL,
+  `balance_before` decimal(14,2) NOT NULL,
+  `balance_after` decimal(14,2) NOT NULL,
+  `currency` char(3) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `amount_paid` decimal(14,2) NOT NULL DEFAULT '0.00',
+  `paid_at` datetime DEFAULT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pendiente',
+  `late_fee` decimal(14,2) DEFAULT NULL,
+  `notes` text COLLATE utf8mb4_unicode_ci,
+  `recorded_by` int DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sale_payment_number` (`transaction_id`,`payment_number`),
+  KEY `idx_sale_payment_status_due` (`status`,`due_date`),
+  KEY `fk_sale_payment_user` (`recorded_by`),
+  CONSTRAINT `fk_sale_payment_transaction` FOREIGN KEY (`transaction_id`) REFERENCES `property_transaction` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_sale_payment_user` FOREIGN KEY (`recorded_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `chk_sale_payment_currency` CHECK ((`currency` in (_utf8mb4'USD',_utf8mb4'MXN'))),
+  CONSTRAINT `chk_sale_payment_status` CHECK ((`status` in (_utf8mb4'pendiente',_utf8mb4'pagado',_utf8mb4'parcial',_utf8mb4'atrasado',_utf8mb4'cancelado')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `sale_payment_partiality`
+--
+
+CREATE TABLE `sale_payment_partiality` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `payment_id` int NOT NULL,
+  `amount` decimal(14,2) NOT NULL,
+  `paid_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `notes` text COLLATE utf8mb4_unicode_ci,
+  `recorded_by` int DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_sale_payment_partiality_payment` (`payment_id`),
+  KEY `fk_sale_payment_partiality_user` (`recorded_by`),
+  CONSTRAINT `fk_sale_payment_partiality_payment` FOREIGN KEY (`payment_id`) REFERENCES `sale_payment` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_sale_payment_partiality_user` FOREIGN KEY (`recorded_by`) REFERENCES `user` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `chk_sale_payment_partiality_amount` CHECK ((`amount` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
 -- Dumping routines for database 'kintok'
 --
 /*!50003 DROP FUNCTION IF EXISTS `fn_convert_to_base` */;
@@ -1386,6 +1482,19 @@ BEGIN
         IF v_open_balances > 0 THEN
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'No se puede cerrar la renta con adeudos pendientes';
+        END IF;
+    END IF;
+
+    IF v_transaction_type = 'venta' THEN
+        SELECT COUNT(*)
+          INTO v_open_balances
+          FROM sale_payment sp
+         WHERE sp.transaction_id = p_transaction_id
+           AND (sp.amount_due - sp.amount_paid + IFNULL(sp.late_fee, 0)) > 0;
+
+        IF v_open_balances > 0 THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'No se puede cerrar la venta con adeudos pendientes';
         END IF;
     END IF;
 
@@ -2381,19 +2490,20 @@ DELIMITER ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `lead_contact_register`(
-    IN p_property_id INT,
-    IN p_name VARCHAR(150),
-    IN p_email VARCHAR(150),
-    IN p_phone VARCHAR(50),
-    IN p_comments TEXT
+    IN p_property_id    INT,
+    IN p_name           VARCHAR(150),
+    IN p_email          VARCHAR(150),
+    IN p_phone          VARCHAR(50),
+    IN p_comments       TEXT,
+    IN p_skip_duplicate TINYINT
 )
 BEGIN
     DECLARE v_property_exists INT;
     DECLARE v_recent_duplicate_id INT;
 
-    IF p_property_id IS NULL OR p_name IS NULL OR p_email IS NULL THEN
+    IF p_name IS NULL OR p_email IS NULL THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'property_id, name y email son requeridos';
+        SET MESSAGE_TEXT = 'name y email son requeridos';
     END IF;
 
     IF p_email NOT REGEXP '^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$' THEN
@@ -2406,31 +2516,44 @@ BEGIN
         SET MESSAGE_TEXT = 'Formato de teléfono inválido';
     END IF;
 
-    SELECT id
-      INTO v_property_exists
-      FROM property
-     WHERE id = p_property_id
-     LIMIT 1;
+    IF p_property_id IS NOT NULL THEN
+        SELECT id
+          INTO v_property_exists
+          FROM property
+         WHERE id = p_property_id
+         LIMIT 1;
 
-    IF v_property_exists IS NULL THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Propiedad no encontrada';
+        IF v_property_exists IS NULL THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Propiedad no encontrada';
+        END IF;
     END IF;
 
     SET p_email = LOWER(TRIM(p_email));
 
-    SELECT id
-      INTO v_recent_duplicate_id
-      FROM lead_contact
-     WHERE property_id = p_property_id
-       AND LOWER(email) = p_email
-       AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-     ORDER BY id DESC
-     LIMIT 1;
+    IF p_property_id IS NOT NULL THEN
+        SELECT id
+          INTO v_recent_duplicate_id
+          FROM lead_contact
+         WHERE property_id = p_property_id
+           AND LOWER(email) = p_email
+           AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+         ORDER BY id DESC
+         LIMIT 1;
+    ELSE
+        SELECT id
+          INTO v_recent_duplicate_id
+          FROM lead_contact
+         WHERE property_id IS NULL
+           AND LOWER(email) = p_email
+           AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+         ORDER BY id DESC
+         LIMIT 1;
+    END IF;
 
-    IF v_recent_duplicate_id IS NOT NULL THEN
+    IF v_recent_duplicate_id IS NOT NULL AND IFNULL(p_skip_duplicate, 0) = 0 THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Ya existe un lead reciente con ese email para esta propiedad (últimas 24h)';
+        SET MESSAGE_TEXT = 'Ya existe un lead reciente con ese email (últimas 24h)';
     END IF;
 
     INSERT INTO lead_contact (
@@ -3604,6 +3727,7 @@ BEGIN
     DECLARE v_business_status_id INT;
     DECLARE v_publication_status_id INT;
     DECLARE v_active_transaction_id INT;
+    DECLARE v_active_transaction_type VARCHAR(20);
     DECLARE v_property_exists INT;
     DECLARE v_property_transaction_id INT;
 
@@ -3627,9 +3751,9 @@ BEGIN
         SET MESSAGE_TEXT = 'Propiedad no encontrada';
     END IF;
 
-    -- Evitar registrar otra transacción activa para la misma propiedad
-    SELECT id
-      INTO v_active_transaction_id
+    -- Verificar si hay transacción activa
+    SELECT id, transaction_type
+      INTO v_active_transaction_id, v_active_transaction_type
       FROM property_transaction
      WHERE property_id = p_property_id
        AND status = 'activa'
@@ -3637,8 +3761,20 @@ BEGIN
      LIMIT 1;
 
     IF v_active_transaction_id IS NOT NULL THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'La propiedad ya tiene una transacción activa. Cancélala o ciérrala antes de registrar otra.';
+        -- Si hay un apartado activo y se registra una venta, cerrar el apartado automáticamente
+        IF v_active_transaction_type = 'apartado' AND p_transaction_type = 'venta' THEN
+            UPDATE property_transaction
+               SET status = 'cerrada',
+                   notes = CONCAT(IFNULL(notes, ''), ' | Cerrado automáticamente al registrar venta')
+             WHERE id = v_active_transaction_id;
+
+            UPDATE transaction_reservation
+               SET applied_to_sale = 1
+             WHERE transaction_id = v_active_transaction_id;
+        ELSE
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La propiedad ya tiene una transacción activa. Cancélala o ciérrala antes de registrar otra.';
+        END IF;
     END IF;
 
     -- Resolver business status según tipo de transacción
@@ -4337,6 +4473,9 @@ BEGIN
         auto_renew       = VALUES(auto_renew);
 
     SELECT * FROM transaction_rental WHERE transaction_id = p_transaction_id;
+
+    -- Generar pagos siempre al guardar (atómico)
+    CALL rent_payment_generate(p_transaction_id);
 END ;;
 DELIMITER ;
 
@@ -5891,3 +6030,576 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 SELECT 'dashboard_procedures_applied' AS result;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Ventas financiadas
+-- ─────────────────────────────────────────────────────────────────────────────
+
+DROP PROCEDURE IF EXISTS `transaction_sale_save`;
+DELIMITER ;;
+CREATE PROCEDURE `transaction_sale_save`(
+    IN p_transaction_id      INT,
+    IN p_tipo                VARCHAR(10),
+    IN p_start_date          DATE,
+    IN p_payment_day         TINYINT,
+    IN p_enganche            DECIMAL(14,2),
+    IN p_saldo_financiar     DECIMAL(14,2),
+    IN p_tasa_interes_anual  DECIMAL(5,2),
+    IN p_plazo_meses         SMALLINT
+)
+BEGIN
+    DECLARE v_transaction_type VARCHAR(20);
+    DECLARE v_status VARCHAR(20);
+    DECLARE v_tipo VARCHAR(10);
+    DECLARE v_tasa DECIMAL(5,2);
+    DECLARE v_plazo SMALLINT;
+
+    SELECT transaction_type, status
+      INTO v_transaction_type, v_status
+      FROM property_transaction
+     WHERE id = p_transaction_id
+     LIMIT 1;
+
+    IF v_transaction_type IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Transacción no encontrada';
+    END IF;
+
+    IF v_transaction_type <> 'venta' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'La transacción no es de tipo venta';
+    END IF;
+
+    IF v_status <> 'activa' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Solo se puede actualizar venta en transacciones activas';
+    END IF;
+
+    SET v_tipo  = IFNULL(p_tipo, 'credito');
+    -- Para contado: tasa siempre 0, plazo mínimo 1
+    IF v_tipo = 'contado' THEN
+        SET v_tasa  = 0.00;
+        SET v_plazo = IFNULL(p_plazo_meses, 1);
+    ELSE
+        SET v_tasa  = p_tasa_interes_anual;
+        SET v_plazo = p_plazo_meses;
+    END IF;
+
+    INSERT INTO transaction_sale (
+        transaction_id, tipo, start_date, payment_day,
+        enganche, saldo_financiar, tasa_interes_anual, plazo_meses
+    ) VALUES (
+        p_transaction_id, v_tipo, p_start_date, IFNULL(p_payment_day, 1),
+        IFNULL(p_enganche, 0), p_saldo_financiar, v_tasa, v_plazo
+    )
+    ON DUPLICATE KEY UPDATE
+        tipo               = VALUES(tipo),
+        start_date         = VALUES(start_date),
+        payment_day        = VALUES(payment_day),
+        enganche           = VALUES(enganche),
+        saldo_financiar    = VALUES(saldo_financiar),
+        tasa_interes_anual = VALUES(tasa_interes_anual),
+        plazo_meses        = VALUES(plazo_meses);
+
+    SELECT * FROM transaction_sale WHERE transaction_id = p_transaction_id;
+
+    -- Generar corrida de pagos siempre al guardar (atómico)
+    CALL sale_payment_generate(p_transaction_id);
+END ;;
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS `sale_payment_generate`;
+DELIMITER ;;
+CREATE PROCEDURE `sale_payment_generate`(
+    IN p_transaction_id INT
+)
+BEGIN
+    DECLARE v_start_date        DATE;
+    DECLARE v_payment_day       TINYINT;
+    DECLARE v_saldo             DECIMAL(14,2);
+    DECLARE v_tasa_mensual      DECIMAL(18,10);
+    DECLARE v_factor_mensual    DECIMAL(18,4);
+    DECLARE v_plazo             SMALLINT;
+    DECLARE v_currency          CHAR(3);
+    DECLARE v_mensualidad       DECIMAL(14,2);
+    DECLARE v_counter           SMALLINT DEFAULT 1;
+    DECLARE v_current           DATE;
+    DECLARE v_due_date          DATE;
+    DECLARE v_interest          DECIMAL(14,2);
+    DECLARE v_capital           DECIMAL(14,2);
+    DECLARE v_balance_before    DECIMAL(14,2);
+    DECLARE v_balance_after     DECIMAL(14,2);
+    DECLARE v_last_day          INT;
+
+    SELECT ts.start_date, ts.payment_day, ts.saldo_financiar,
+           ts.tasa_interes_anual / 100 / 12, ts.plazo_meses, pt.currency
+      INTO v_start_date, v_payment_day, v_saldo,
+           v_tasa_mensual, v_plazo, v_currency
+      FROM transaction_sale ts
+      JOIN property_transaction pt ON pt.id = ts.transaction_id
+     WHERE ts.transaction_id = p_transaction_id;
+
+    IF v_saldo IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se encontró la venta financiada para esta transacción';
+    END IF;
+
+    SET v_factor_mensual = ROUND(1 + v_tasa_mensual, 4);
+
+    -- Mensualidad fija estilo Excel legacy:
+    -- saldo_k = (saldo_{k-1} - pago) * factor_mensual
+    IF v_tasa_mensual = 0 THEN
+        SET v_mensualidad = ROUND(v_saldo / v_plazo, 2);
+    ELSE
+        SET v_mensualidad = ROUND(
+            v_saldo * POW(v_factor_mensual, v_plazo - 1) * (v_factor_mensual - 1) /
+            (POW(v_factor_mensual, v_plazo) - 1),
+            2
+        );
+    END IF;
+
+    -- Eliminar pagos previos para poder regenerar
+    DELETE FROM sale_payment WHERE transaction_id = p_transaction_id;
+
+    SET v_current = DATE(CONCAT(YEAR(v_start_date), '-', LPAD(MONTH(v_start_date), 2, '0'), '-01'));
+    SET v_last_day = DAY(LAST_DAY(v_current));
+    SET v_due_date = DATE(CONCAT(
+        YEAR(v_current), '-',
+        LPAD(MONTH(v_current), 2, '0'), '-',
+        LPAD(IF(v_payment_day > v_last_day, v_last_day, v_payment_day), 2, '0')
+    ));
+    IF v_due_date < v_start_date THEN
+        SET v_current = DATE_ADD(v_current, INTERVAL 1 MONTH);
+    END IF;
+
+    WHILE v_counter <= v_plazo DO
+        SET v_last_day  = DAY(LAST_DAY(v_current));
+        SET v_due_date  = DATE(CONCAT(
+            YEAR(v_current), '-',
+            LPAD(MONTH(v_current), 2, '0'), '-',
+            LPAD(IF(v_payment_day > v_last_day, v_last_day, v_payment_day), 2, '0')
+        ));
+
+        SET v_balance_before = v_saldo;
+        IF v_tasa_mensual = 0 THEN
+            SET v_interest = 0;
+            SET v_capital = v_mensualidad;
+            SET v_balance_after = ROUND(v_saldo - v_mensualidad, 2);
+        ELSE
+            SET v_balance_after = ROUND((v_saldo - v_mensualidad) * v_factor_mensual, 2);
+            SET v_interest = ROUND((v_saldo - v_mensualidad) * (v_factor_mensual - 1), 2);
+            SET v_capital = ROUND(v_mensualidad - v_interest, 2);
+        END IF;
+        IF ABS(v_balance_after) < 0.01 THEN
+            SET v_balance_after = 0;
+        END IF;
+        SET v_saldo         = v_balance_after;
+
+        INSERT INTO sale_payment (
+            transaction_id, payment_number, due_date, amount_due,
+            capital, interest, balance_before, balance_after, currency, status
+        ) VALUES (
+            p_transaction_id, v_counter, v_due_date, v_mensualidad,
+            v_capital, v_interest, v_balance_before, v_balance_after, v_currency, 'pendiente'
+        );
+
+        SET v_current = DATE_ADD(v_current, INTERVAL 1 MONTH);
+        SET v_counter = v_counter + 1;
+    END WHILE;
+
+    SELECT COUNT(*) AS payments_generated FROM sale_payment WHERE transaction_id = p_transaction_id;
+END ;;
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS `sale_payment_list`;
+DELIMITER ;;
+CREATE PROCEDURE `sale_payment_list`(
+    IN p_transaction_id INT
+)
+BEGIN
+    UPDATE sale_payment
+       SET status = 'atrasado'
+     WHERE transaction_id = p_transaction_id
+       AND due_date < CURDATE()
+       AND status = 'pendiente';
+
+    SELECT
+        sp.*,
+        (sp.amount_due - sp.amount_paid + IFNULL(sp.late_fee, 0)) AS balance_due
+      FROM sale_payment sp
+     WHERE sp.transaction_id = p_transaction_id
+     ORDER BY sp.payment_number ASC;
+END ;;
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS `sale_payment_update`;
+DELIMITER ;;
+CREATE PROCEDURE `sale_payment_update`(
+    IN p_payment_id  INT,
+    IN p_amount_paid DECIMAL(14,2),
+    IN p_paid_at     DATETIME,
+    IN p_late_fee    DECIMAL(14,2),
+    IN p_notes       TEXT,
+    IN p_recorded_by INT
+)
+BEGIN
+    DECLARE v_amount_due      DECIMAL(14,2);
+    DECLARE v_late_fee        DECIMAL(14,2);
+    DECLARE v_total_due       DECIMAL(14,2);
+    DECLARE v_current_status  VARCHAR(20);
+    DECLARE v_status          VARCHAR(20);
+    DECLARE v_transaction_id  INT;
+    DECLARE v_payment_number  SMALLINT;
+    DECLARE v_overpayment     DECIMAL(14,2);
+    DECLARE v_next_id         INT;
+    DECLARE v_next_due        DECIMAL(14,2);
+    DECLARE v_next_late_fee   DECIMAL(14,2);
+    DECLARE v_next_total      DECIMAL(14,2);
+    DECLARE v_next_pnum       SMALLINT;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    SELECT amount_due, IFNULL(late_fee, 0), status, transaction_id, payment_number
+      INTO v_amount_due, v_late_fee, v_current_status, v_transaction_id, v_payment_number
+      FROM sale_payment
+     WHERE id = p_payment_id
+     FOR UPDATE;
+
+    IF v_amount_due IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Pago no encontrado';
+    END IF;
+
+    IF v_current_status = 'cancelado' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se puede actualizar un pago cancelado';
+    END IF;
+
+    SET v_total_due = v_amount_due + IFNULL(p_late_fee, v_late_fee);
+
+    IF p_amount_paid >= v_total_due THEN
+        SET v_status = 'pagado';
+    ELSEIF p_amount_paid > 0 THEN
+        SET v_status = 'parcial';
+    ELSE
+        SET v_status = v_current_status;
+    END IF;
+
+    UPDATE sale_payment
+       SET amount_paid  = p_amount_paid,
+           paid_at      = COALESCE(p_paid_at, IF(p_amount_paid > 0, NOW(), paid_at)),
+           late_fee     = COALESCE(p_late_fee, late_fee),
+           notes        = COALESCE(p_notes, notes),
+           recorded_by  = COALESCE(p_recorded_by, recorded_by),
+           status       = v_status
+     WHERE id = p_payment_id;
+
+    -- Aplicar excedente en cascada a los siguientes pagos pendientes
+    SET v_overpayment = ROUND(p_amount_paid - v_total_due, 2);
+    SET v_next_pnum   = v_payment_number;
+
+    overpayment_loop: WHILE v_overpayment > 0 DO
+        SET v_next_id = NULL;
+
+        SELECT id, amount_due, IFNULL(late_fee, 0), payment_number
+          INTO v_next_id, v_next_due, v_next_late_fee, v_next_pnum
+          FROM sale_payment
+         WHERE transaction_id = v_transaction_id
+           AND payment_number > v_next_pnum
+           AND status NOT IN ('pagado', 'cancelado')
+         ORDER BY payment_number ASC
+         LIMIT 1
+         FOR UPDATE;
+
+        IF v_next_id IS NULL THEN
+            LEAVE overpayment_loop;
+        END IF;
+
+        SET v_next_total = v_next_due + v_next_late_fee;
+
+        IF v_overpayment >= v_next_total THEN
+            -- El excedente cubre este pago completo, marcarlo como pagado
+            UPDATE sale_payment
+               SET amount_paid = v_next_total,
+                   paid_at     = COALESCE(p_paid_at, NOW()),
+                   recorded_by = COALESCE(p_recorded_by, recorded_by),
+                   status      = 'pagado'
+             WHERE id = v_next_id;
+            SET v_overpayment = ROUND(v_overpayment - v_next_total, 2);
+        ELSE
+            -- El excedente es un abono parcial al siguiente pago
+            UPDATE sale_payment
+               SET amount_paid = ROUND(IFNULL(amount_paid, 0) + v_overpayment, 2),
+                   recorded_by = COALESCE(p_recorded_by, recorded_by),
+                   status      = 'parcial'
+             WHERE id = v_next_id;
+            SET v_overpayment = 0;
+        END IF;
+    END WHILE;
+
+    COMMIT;
+
+    SELECT sp.*, (sp.amount_due - sp.amount_paid + IFNULL(sp.late_fee, 0)) AS balance_due
+      FROM sale_payment sp
+     WHERE sp.id = p_payment_id;
+END ;;
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS `sale_payment_partial_list`;
+DELIMITER ;;
+CREATE PROCEDURE `sale_payment_partial_list`(
+    IN p_payment_id INT
+)
+BEGIN
+    SELECT
+        spp.id,
+        spp.payment_id,
+        spp.amount,
+        spp.paid_at,
+        spp.notes,
+        spp.recorded_by,
+        u.full_name AS recorded_by_name,
+        spp.created_at
+    FROM sale_payment_partiality spp
+    LEFT JOIN `user` u ON u.id = spp.recorded_by
+    WHERE spp.payment_id = p_payment_id
+    ORDER BY spp.paid_at ASC, spp.id ASC;
+END ;;
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS `sale_payment_partial_add`;
+DELIMITER ;;
+CREATE PROCEDURE `sale_payment_partial_add`(
+    IN p_payment_id  INT,
+    IN p_amount      DECIMAL(14,2),
+    IN p_paid_at     DATETIME,
+    IN p_late_fee    DECIMAL(14,2),
+    IN p_notes       TEXT,
+    IN p_recorded_by INT
+)
+BEGIN
+    DECLARE v_amount_due      DECIMAL(14,2);
+    DECLARE v_amount_paid     DECIMAL(14,2);
+    DECLARE v_due_date        DATE;
+    DECLARE v_late_fee        DECIMAL(14,2);
+    DECLARE v_new_late_fee    DECIMAL(14,2);
+    DECLARE v_total_due       DECIMAL(14,2);
+    DECLARE v_new_amount_paid DECIMAL(14,2);
+    DECLARE v_new_status      VARCHAR(20);
+    DECLARE v_current_status  VARCHAR(20);
+    DECLARE v_partial_id      INT;
+    DECLARE v_transaction_id  INT;
+    DECLARE v_payment_number  SMALLINT;
+    DECLARE v_overpayment     DECIMAL(14,2);
+    DECLARE v_next_id         INT;
+    DECLARE v_next_due        DECIMAL(14,2);
+    DECLARE v_next_late_fee   DECIMAL(14,2);
+    DECLARE v_next_total      DECIMAL(14,2);
+    DECLARE v_next_pnum       SMALLINT;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    IF p_amount IS NULL OR p_amount <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'El monto de la parcialidad debe ser mayor a 0';
+    END IF;
+
+    START TRANSACTION;
+
+    SELECT amount_due, amount_paid, due_date, IFNULL(late_fee, 0), status, transaction_id, payment_number
+      INTO v_amount_due, v_amount_paid, v_due_date, v_late_fee, v_current_status, v_transaction_id, v_payment_number
+      FROM sale_payment
+     WHERE id = p_payment_id
+     FOR UPDATE;
+
+    IF v_amount_due IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Pago no encontrado';
+    END IF;
+
+    IF v_current_status = 'cancelado' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'No se puede registrar parcialidad en un pago cancelado';
+    END IF;
+
+    IF v_current_status = 'pagado' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Este pago ya está liquidado';
+    END IF;
+
+    SET v_new_late_fee    = IFNULL(p_late_fee, v_late_fee);
+    SET v_new_amount_paid = ROUND(v_amount_paid + p_amount, 2);
+    SET v_total_due       = v_amount_due + v_new_late_fee;
+
+    IF v_new_amount_paid >= v_total_due THEN
+        SET v_new_status = 'pagado';
+    ELSE
+        SET v_new_status = 'parcial';
+    END IF;
+
+    INSERT INTO sale_payment_partiality (payment_id, amount, paid_at, notes, recorded_by)
+    VALUES (p_payment_id, p_amount, IFNULL(p_paid_at, NOW()), p_notes, p_recorded_by);
+
+    SET v_partial_id = LAST_INSERT_ID();
+
+    UPDATE sale_payment
+       SET amount_paid = v_new_amount_paid,
+           paid_at     = IFNULL(p_paid_at, NOW()),
+           late_fee    = v_new_late_fee,
+           notes       = CASE
+                           WHEN p_notes IS NULL OR p_notes = '' THEN notes
+                           WHEN notes IS NULL OR notes = '' THEN p_notes
+                           ELSE CONCAT(notes, ' | ', p_notes)
+                         END,
+           status      = v_new_status,
+           recorded_by = p_recorded_by
+     WHERE id = p_payment_id;
+
+    -- Aplicar excedente en cascada si el abono supera lo adeudado
+    SET v_overpayment = ROUND(v_new_amount_paid - v_total_due, 2);
+    SET v_next_pnum   = v_payment_number;
+
+    overpayment_loop: WHILE v_overpayment > 0 DO
+        SET v_next_id = NULL;
+
+        SELECT id, amount_due, IFNULL(late_fee, 0), payment_number
+          INTO v_next_id, v_next_due, v_next_late_fee, v_next_pnum
+          FROM sale_payment
+         WHERE transaction_id = v_transaction_id
+           AND payment_number > v_next_pnum
+           AND status NOT IN ('pagado', 'cancelado')
+         ORDER BY payment_number ASC
+         LIMIT 1
+         FOR UPDATE;
+
+        IF v_next_id IS NULL THEN
+            LEAVE overpayment_loop;
+        END IF;
+
+        SET v_next_total = v_next_due + v_next_late_fee;
+
+        IF v_overpayment >= v_next_total THEN
+            UPDATE sale_payment
+               SET amount_paid = v_next_total,
+                   paid_at     = IFNULL(p_paid_at, NOW()),
+                   recorded_by = p_recorded_by,
+                   status      = 'pagado'
+             WHERE id = v_next_id;
+            SET v_overpayment = ROUND(v_overpayment - v_next_total, 2);
+        ELSE
+            UPDATE sale_payment
+               SET amount_paid = ROUND(IFNULL(amount_paid, 0) + v_overpayment, 2),
+                   recorded_by = p_recorded_by,
+                   status      = 'parcial'
+             WHERE id = v_next_id;
+            SET v_overpayment = 0;
+        END IF;
+    END WHILE;
+
+    COMMIT;
+
+    SELECT
+        sp.*,
+        v_partial_id AS partiality_id,
+        p_amount     AS partial_amount,
+        (sp.amount_due - sp.amount_paid + IFNULL(sp.late_fee, 0)) AS balance_due
+      FROM sale_payment sp
+     WHERE sp.id = p_payment_id;
+END ;;
+DELIMITER ;
+
+SELECT 'sale_financing_applied' AS result;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Configuración de financiamiento
+-- ─────────────────────────────────────────────────────────────────────────────
+
+DROP PROCEDURE IF EXISTS `financing_config_get`;
+DELIMITER ;;
+CREATE PROCEDURE `financing_config_get`()
+BEGIN
+    SELECT * FROM financing_config LIMIT 1;
+END ;;
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS `financing_config_update`;
+DELIMITER ;;
+CREATE PROCEDURE `financing_config_update`(
+    IN p_tasa_interes_anual  DECIMAL(5,2),
+    IN p_plazo_meses_default SMALLINT,
+    IN p_plazo_meses_min     SMALLINT,
+    IN p_plazo_meses_max     SMALLINT,
+    IN p_updated_by          INT
+)
+BEGIN
+    IF p_tasa_interes_anual < 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La tasa no puede ser negativa';
+    END IF;
+    IF p_plazo_meses_min < 1 OR p_plazo_meses_max < p_plazo_meses_min THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Rango de plazos inválido';
+    END IF;
+    UPDATE financing_config
+       SET tasa_interes_anual  = p_tasa_interes_anual,
+           plazo_meses_default = p_plazo_meses_default,
+           plazo_meses_min     = p_plazo_meses_min,
+           plazo_meses_max     = p_plazo_meses_max,
+           updated_by          = p_updated_by
+     WHERE id = 1;
+    SELECT * FROM financing_config LIMIT 1;
+END ;;
+DELIMITER ;
+
+SELECT 'financing_config_applied' AS result;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Detalle de transacción (consolida 4 queries raw en 1 SP)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+DROP PROCEDURE IF EXISTS `property_transaction_detail`;
+DELIMITER ;;
+CREATE PROCEDURE `property_transaction_detail`(IN p_transaction_id INT)
+BEGIN
+    DECLARE v_type VARCHAR(20);
+
+    SELECT pt.transaction_type INTO v_type
+      FROM property_transaction pt WHERE pt.id = p_transaction_id LIMIT 1;
+
+    IF v_type IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Transacción no encontrada';
+    END IF;
+
+    -- Result set 1: transacción base con joins
+    SELECT pt.*,
+           p.title        AS property_title,
+           c.full_name    AS customer_name,
+           c.email        AS customer_email,
+           c.phone        AS customer_phone,
+           u.full_name    AS registered_by
+      FROM property_transaction pt
+      JOIN property p   ON p.id  = pt.property_id
+      JOIN customer c   ON c.id  = pt.customer_id
+      LEFT JOIN `user` u ON u.id = pt.created_by
+     WHERE pt.id = p_transaction_id;
+
+    -- Result set 2: detalle según tipo
+    IF v_type = 'apartado' THEN
+        SELECT * FROM transaction_reservation WHERE transaction_id = p_transaction_id;
+    ELSEIF v_type = 'venta' THEN
+        SELECT * FROM transaction_sale WHERE transaction_id = p_transaction_id;
+    ELSEIF v_type = 'renta' THEN
+        SELECT * FROM transaction_rental WHERE transaction_id = p_transaction_id;
+    END IF;
+END ;;
+DELIMITER ;
+
+SELECT 'transaction_detail_sp_applied' AS result;

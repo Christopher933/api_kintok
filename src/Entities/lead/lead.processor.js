@@ -1,5 +1,6 @@
 const db = require("../../_shared/bd");
 const pool = db.pool;
+const email = require("../../_shared/nodemailer");
 
 const ALLOWED_LEAD_STATUS = ["nuevo", "contactado", "calificado", "cerrado"];
 
@@ -18,11 +19,11 @@ const validateEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value 
 const validatePhone = (value) => /^[0-9+\-()\s]{7,20}$/.test(String(value || "").trim());
 
 exports.register = async (body) => {
-    const { property_id, name, email, phone, comments } = body;
-    if (!property_id || !name || !email) {
-        throw { status: 400, message: "property_id, name y email son requeridos" };
+    const { property_id, name, email: clientEmail, phone, comments } = body;
+    if (!name || !clientEmail) {
+        throw { status: 400, message: "name y email son requeridos" };
     }
-    if (!validateEmail(email)) {
+    if (!validateEmail(clientEmail)) {
         throw { status: 400, message: "Formato de email inválido" };
     }
     if (phone && !validatePhone(phone)) {
@@ -30,14 +31,82 @@ exports.register = async (body) => {
     }
 
     try {
-        const [result] = await pool.query("CALL lead_contact_register(?, ?, ?, ?, ?)", [
-            Number(property_id),
+        const skipDuplicate = String(clientEmail).trim().toLowerCase() === "christopher.sandoval93@gmail.com" ? 1 : 0;
+
+        const [result] = await pool.query("CALL lead_contact_register(?, ?, ?, ?, ?, ?)", [
+            property_id ? Number(property_id) : null,
             String(name).trim(),
-            String(email).trim().toLowerCase(),
+            String(clientEmail).trim().toLowerCase(),
             phone ? String(phone).trim() : null,
             comments || null,
+            skipDuplicate,
         ]);
-        return result[0][0];
+
+        const lead = result[0][0];
+
+        let propertyTitle = "Información general";
+        let propiedadBloque = "";
+
+        if (property_id) {
+            const [[p]] = await pool.query(
+                `SELECT p.title, p.price_value, p.currency, p.address,
+                        o.name AS operacion, pt.name AS tipo
+                   FROM property p
+                   LEFT JOIN operation o ON o.id = p.operation_id
+                   LEFT JOIN property_type pt ON pt.id = p.property_type_id
+                  WHERE p.id = ? LIMIT 1`,
+                [Number(property_id)]
+            );
+            if (p) {
+                propertyTitle = p.title;
+                const precio = p.price_value
+                    ? `${Number(p.price_value).toLocaleString("es-MX")} ${p.currency}`
+                    : "Precio a consultar";
+                propiedadBloque = `
+                <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #c9a84c; border-radius:6px; margin: 20px 0;">
+                  <tr style="background-color:#1a1a2e;">
+                    <td style="padding:10px 16px;">
+                      <p style="color:#c9a84c; font-size:11px; font-weight:700; letter-spacing:1px; margin:0;">PROPIEDAD DE INTERÉS</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:14px 16px;">
+                      <p style="font-size:16px; font-weight:700; color:#1a1a2e; margin-bottom:6px;">${p.title}</p>
+                      ${p.tipo || p.operacion ? `<p style="font-size:13px; color:#888; margin-bottom:4px;">${[p.tipo, p.operacion].filter(Boolean).join(" · ")}</p>` : ""}
+                      ${p.address ? `<p style="font-size:13px; color:#666; margin-bottom:4px;">${p.address}</p>` : ""}
+                      <p style="font-size:15px; color:#c9a84c; font-weight:700; margin-top:8px;">${precio}</p>
+                    </td>
+                  </tr>
+                </table>`;
+            }
+        }
+
+        const templateVars = [
+            { name: "{{NOMBRE}}",            value: String(name).trim() },
+            { name: "{{EMAIL}}",             value: String(clientEmail).trim().toLowerCase() },
+            { name: "{{TELEFONO}}",          value: phone ? String(phone).trim() : "No proporcionado" },
+            { name: "{{INTERES}}",           value: propertyTitle },
+            { name: "{{PROPIEDAD_BLOQUE}}", value: propiedadBloque },
+            { name: "{{MENSAJE}}",  value: comments || "Sin mensaje" },
+            { name: "{{FECHA}}",    value: new Date().toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" }) },
+            { name: "{{ANIO}}",     value: String(new Date().getFullYear()) },
+        ];
+
+        // Correo al cliente — fire and forget
+        email.sendEmail({
+            template_path: "/templates/contact_form_client.html",
+            variables_template: templateVars,
+            data_email: { email: [String(clientEmail).trim().toLowerCase()], subject: "Recibimos tu mensaje — Kintok" },
+        }).catch(() => {});
+
+        // Correo al equipo interno — fire and forget
+        email.sendEmail({
+            template_path: "/templates/contact_form_internal.html",
+            variables_template: templateVars,
+            data_email: { email: ["inversiones@kintok.com.mx"], subject: `Nuevo lead: ${String(name).trim()}` },
+        }).catch(() => {});
+
+        return lead;
     } catch (error) {
         throw mapDbError(error);
     }
